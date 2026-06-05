@@ -130,3 +130,15 @@ legend { font-family: "Spectral", serif; font-weight: 600; color: var(--green-90
 .select-row select { padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; font-family: inherit;
   font-size: .92rem; background: #fcfdfb; min-width: 220px; }
 .select-row select:focus { outline: none; border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(64,145,108,.16); }
+
+/* Спринт 8: подвал со ссылками (задача 12), ссылка-подзаголовок бренда (15), ссылки на формы Jotform (7,8) */
+.brand-sub{display:block;font-size:11px;line-height:1.25;color:#5a6b7b;margin-top:2px;text-decoration:none}
+.brand-sub:hover{text-decoration:underline}
+.app-footer{display:flex;flex-wrap:wrap;gap:28px;padding:18px 24px;margin-top:18px;
+  border-top:1px solid #e3e8ee;background:#fafbfc;font-size:12px;color:#5a6b7b}
+.footer-col{display:flex;flex-direction:column;gap:4px;max-width:340px}
+.footer-title{font-weight:600;color:#33414f;margin-bottom:2px}
+.app-footer a{color:#2f6f4f;text-decoration:none}
+.app-footer a:hover{text-decoration:underline}
+.jotform-link{margin:6px 0 14px;font-size:13px}
+.jotform-link a{color:#2f6f4f;font-weight:600}

@@ -213,7 +213,9 @@ def import_maturity_from_excel(db: Session, path: str | Path) -> dict:
 def import_efficiency_from_excel(db: Session, path: str | Path,
                                  yield_after: dict[str, float] | None = None) -> dict:
     loaded, skipped, errors = 0, 0, []
-    for rec in import_efficiency_sheet(path, yield_after=yield_after):
+    for rec in import_efficiency_sheet(path):
+        if yield_after and rec.get("name") in yield_after:
+            rec["yield_after"] = yield_after[rec["name"]]
         try:
             inputs = to_efficiency_inputs(rec)
         except ValueError as exc:

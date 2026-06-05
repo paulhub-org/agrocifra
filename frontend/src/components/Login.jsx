@@ -25,7 +25,7 @@ export default function Login() {
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-brand"><span className="logo">🌾</span><h1>АгроЦифра</h1></div>
         <p className="muted auth-sub">
-          Оценка эффективности и оптимизация цифровизации
+          Цифровая зрелость и оценка эффективности цифровизации
           сельскохозяйственных организаций
         </p>
         <label>Логин

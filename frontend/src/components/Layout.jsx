@@ -20,7 +20,9 @@ export default function Layout() {
       <aside className="side">
         <div className="brand">
           <span className="logo">🌾</span>
-          <div className="brand-text"><b>АгроЦифра</b><small>АИС цифровизации</small></div>
+          <div className="brand-text"><b>АгроЦифра</b>
+            <a className="brand-sub" href="https://mshp.gov.by/ru/sh-ru/" target="_blank" rel="noopener noreferrer">АИС цифровизации сельскохозяйственных организаций – организации растениеводства</a>
+          </div>
         </div>
         <nav className="nav-list">
           {items.map((i) => (
@@ -30,7 +32,7 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="side-foot">Растениеводство · Республика Беларусь</div>
+        <div className="side-foot">© 2026 · АгроЦифра</div>
       </aside>
       <div className="main">
         <header className="topbar">
@@ -41,6 +43,25 @@ export default function Layout() {
           <button className="ghost" onClick={() => { logout(); navigate('/login') }}>Выйти</button>
         </header>
         <main className="content"><Outlet /></main>
+        <footer className="app-footer">
+          <div className="footer-col">
+            <span className="footer-title">Государственный орган</span>
+            <a href="https://mshp.gov.by/ru" target="_blank" rel="noopener noreferrer">Министерство сельского хозяйства и продовольствия Республики Беларусь</a>
+          </div>
+          <div className="footer-col">
+            <span className="footer-title">Региональные операторы</span>
+            <a href="https://www.brest-region.gov.by/" target="_blank" rel="noopener noreferrer">Брестский облисполком</a>
+            <a href="https://vitebsk-region.gov.by/" target="_blank" rel="noopener noreferrer">Витебский облисполком</a>
+            <a href="https://gomel-region.gov.by/ru" target="_blank" rel="noopener noreferrer">Гомельский облисполком</a>
+            <a href="https://grodno-region.gov.by/ru" target="_blank" rel="noopener noreferrer">Гродненский облисполком</a>
+            <a href="https://minsk-region.gov.by/" target="_blank" rel="noopener noreferrer">Минский облисполком</a>
+            <a href="https://mogilev-region.gov.by/" target="_blank" rel="noopener noreferrer">Могилёвский облисполком</a>
+          </div>
+          <div className="footer-col">
+            <span className="footer-title">Разработчик</span>
+            <a href="mailto:paul.yukhniuk@gmail.com">Связаться с разработчиком</a>
+          </div>
+        </footer>
       </div>
     </div>
   )

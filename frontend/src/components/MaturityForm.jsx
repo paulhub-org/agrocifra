@@ -29,6 +29,7 @@ export default function MaturityForm() {
     <div>
       <h2 className="page-title">Ввод данных · цифровая зрелость</h2>
       <p className="muted">Уровень зрелости = геометрическое среднее оценок потребности и возможностей: КЗ = √(потребность · возможности); пороги зон 0,134 и 0,366.</p>
+      <p className="jotform-link">Заполнить через форму Jotform: <a href="https://form.jotform.com/241376010701342" target="_blank" rel="noopener noreferrer">анкета оценки цифровой зрелости</a>.</p>
       <form onSubmit={submit} className="form">
         <label className="full">Наименование организации
           <input value={name} onChange={(e) => setName(e.target.value)} required />

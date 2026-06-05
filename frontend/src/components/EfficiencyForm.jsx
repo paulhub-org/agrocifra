@@ -61,6 +61,7 @@ export default function EfficiencyForm() {
     <div>
       <h2 className="page-title">Ввод данных · эффективность цифровизации</h2>
       <p className="muted">Интегральный коэффициент КЭц рассчитывается по индексной формуле (произведение средних отношений «после/до»).</p>
+      <p className="jotform-link">Заполнить через форму Jotform: <a href="https://form.jotform.com/222133487281353" target="_blank" rel="noopener noreferrer">анкета фактических показателей эффективности</a>.</p>
       <form onSubmit={submit} className="form">
         <label className="full">Наименование организации
           <input value={name} onChange={(e) => setName(e.target.value)} required />
