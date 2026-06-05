@@ -1,0 +1,25 @@
+[
+  {
+    "name": "<организация>",
+    "economic": {
+      "costs_before": {"planting_material": 0, "fertilizers": 0, "plant_protection": 0, "machinery_cost": 0, "labor_and_social": 0, "additional": 0},
+      "costs_after":  {"planting_material": 0, "fertilizers": 0, "plant_protection": 0, "machinery_cost": 0, "labor_and_social": 0, "additional": 0},
+      "area_ha": 0, "gross_yield_before_t": 0, "gross_yield_after_t": 0, "crop_price_rub_per_t": 0
+    },
+    "ecological": {
+      "area_ha": 0,
+      "petrol_before_t": 0, "petrol_after_t": 0,
+      "diesel_before_t": 0, "diesel_after_t": 0,
+      "fertilizers": [{"change_t": 0, "price_rub_per_t": 0}]
+    },
+    "social": {
+      "revenue_before_rub": 0, "revenue_after_rub": 0, "headcount_before": 1, "headcount_after": 1,
+      "taxable_profit_before": 0, "taxable_profit_after": 0,
+      "value_added_before": 0, "value_added_after": 0,
+      "payroll_before": 0, "payroll_after": 0,
+      "fixed_assets_before": 0, "fixed_assets_after": 0
+    },
+    "digitalization_costs": {"uav": 0, "internet": 0, "software": 0, "workstations": 0, "other": 0},
+    "operating_profit_before": 0, "operating_profit_after": 0
+  }
+]
