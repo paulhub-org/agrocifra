@@ -1,0 +1,5 @@
+# Принудительно LF для shell-скриптов (иначе Windows-checkout ломает entrypoint в контейнере)
+*.sh text eol=lf
+backend/docker/entrypoint.sh text eol=lf
+# Прочие текстовые файлы — нормализация переводов строк
+* text=auto

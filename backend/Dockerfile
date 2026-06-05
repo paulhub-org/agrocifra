@@ -21,7 +21,7 @@ COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini ./
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown -R appuser:appuser /app
+RUN sed -i "s/\r$//" /entrypoint.sh && chmod +x /entrypoint.sh && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
