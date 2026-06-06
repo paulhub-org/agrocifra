@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_roles
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
-from app.models.models import Role, UserAccount
+from app.models.models import Organization, Region, Role, UserAccount
 from app.schemas.auth import MessageOut, RegisterRequest, SwitchRoleRequest, Token, UserOut
 
 router = APIRouter(prefix="/auth", tags=["Аутентификация"])
@@ -21,6 +21,30 @@ _DEMO_LOGIN = {
     Role.digitalization_office.value: "office",
     Role.state_authority.value: "gov",
 }
+
+
+def _get_or_create_region(db: Session, name: str | None) -> Region | None:
+    name = (name or "").strip()
+    if not name:
+        return None
+    reg = db.execute(select(Region).where(Region.name == name)).scalar_one_or_none()
+    if not reg:
+        reg = Region(name=name)
+        db.add(reg)
+        db.flush()
+    return reg
+
+
+def _get_or_create_organization(db: Session, name: str | None) -> Organization | None:
+    name = (name or "").strip()
+    if not name:
+        return None
+    org = db.execute(select(Organization).where(Organization.name == name)).scalar_one_or_none()
+    if not org:
+        org = Organization(name=name)
+        db.add(org)
+        db.flush()
+    return org
 
 
 @router.post("/login", response_model=Token)
@@ -54,14 +78,36 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if exists is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail="Учётная запись с таким логином уже существует")
-    db.add(UserAccount(
+    region = (payload.region or "").strip() or None
+    district = (payload.district or "").strip() or None
+    user = UserAccount(
         login=payload.login,
         password_hash=hash_password(payload.password),
         role=payload.role,
-        full_name=payload.full_name,
+        full_name=payload.full_name,      # ФИО — отдельно от наименования организации (задача 19)
         email=payload.email,
         is_active=False,  # требуется подтверждение администратором
-    ))
+    )
+    db.add(user)
+    db.flush()
+
+    # Привязка к области/району по роли (задачи 1, 13, 20, 21)
+    if payload.role == Role.organization.value and (payload.organization_name or "").strip():
+        org = _get_or_create_organization(db, payload.organization_name)
+        if region and not org.region_id:
+            org.region_id = _get_or_create_region(db, region).id
+        if district and not org.district:
+            org.district = district
+        user.organization_id = org.id
+        user.region_id = org.region_id
+    elif payload.role == Role.regional_operator.value and region:
+        user.region_id = _get_or_create_region(db, region).id
+    elif payload.role == Role.district_operator.value:
+        if region:
+            user.region_id = _get_or_create_region(db, region).id
+        if district:
+            user.district = district
+
     db.commit()
     return MessageOut(message="Заявка на регистрацию отправлена и ожидает подтверждения.")
 

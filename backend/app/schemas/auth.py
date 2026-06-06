@@ -33,8 +33,11 @@ class RegisterRequest(BaseModel):
     login: str
     password: str
     role: str = "organization"
-    full_name: str | None = None
+    full_name: str | None = None          # ФИО пользователя
     email: str | None = None
+    organization_name: str | None = None  # наименование организации (роль «Организация»)
+    region: str | None = None             # область (организация / региональный / районный оператор)
+    district: str | None = None           # район (организация / районный оператор)
 
 
 class SwitchRoleRequest(BaseModel):

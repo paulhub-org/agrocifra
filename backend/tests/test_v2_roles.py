@@ -59,3 +59,29 @@ def test_district_operator_sees_only_its_district(db):
     # область целиком видит обе организации
     s_region = reporting.summary(db, region_id=reg.id)
     assert s_region["overall"]["organizations"] == 2
+
+
+def _office_headers(client):
+    t = client.post("/auth/login", data={"username": "office", "password": "office123"}).json()
+    return {"Authorization": f"Bearer {t['access_token']}"}
+
+
+def test_registration_captures_region_and_district(client):
+    """V2.0, задачи 19/20/21: ФИО отдельно, область/район учитываются по роли."""
+    assert client.post("/auth/register", json={
+        "login": "reg_obl", "password": "secret123", "role": "regional_operator",
+        "full_name": "Региональный Р.Р.", "region": "Минская",
+    }).status_code == 201
+    assert client.post("/auth/register", json={
+        "login": "reg_dist", "password": "secret123", "role": "district_operator",
+        "full_name": "Районный Р.Р.", "region": "Минская", "district": "Смолевичский",
+    }).status_code == 201
+
+    pending = client.get("/auth/pending", headers=_office_headers(client)).json()
+    by_login = {u["login"]: u for u in pending}
+    assert {"reg_obl", "reg_dist"} <= set(by_login)
+    # область учтена — region_id проставлен (задачи 13/21)
+    assert by_login["reg_obl"]["region_id"] is not None
+    assert by_login["reg_dist"]["region_id"] is not None
+    # ФИО отдельным полем (задача 19)
+    assert by_login["reg_obl"]["full_name"] == "Региональный Р.Р."
