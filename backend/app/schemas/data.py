@@ -47,6 +47,8 @@ class ImportResult(BaseModel):
 
 class EfficiencyInputIn(BaseModel):
     organization_name: str
+    region: str | None = None
+    district: str | None = None
     cost_total_before: float
     area_before_ha: float
     cost_per_ha_after: float
@@ -68,5 +70,7 @@ class EfficiencyInputIn(BaseModel):
 
 class MaturityInputIn(BaseModel):
     organization_name: str
+    region: str | None = None
+    district: str | None = None
     need_avg: float = Field(ge=0)
     capability_avg: float = Field(ge=0)

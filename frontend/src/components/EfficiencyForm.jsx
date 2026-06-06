@@ -27,11 +27,14 @@ const GROUPS = [
   ]],
 ]
 const OPTIONAL = new Set(['profit_before', 'profit_after', 'total_costs_before', 'total_costs'])
+const OBLASTS = ['Брестская', 'Витебская', 'Гомельская', 'Гродненская', 'Минская', 'Могилёвская']
 const fmt = (x) => Number(x).toFixed(4).replace('.', ',')
 
 export default function EfficiencyForm() {
   const [name, setName] = useState('')
   const [v, setV] = useState({})
+  const [region, setRegion] = useState('')
+  const [district, setDistrict] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,6 +55,8 @@ export default function EfficiencyForm() {
           payload[k] = Number(raw)
         }
       }
+      payload.region = region || null
+      payload.district = district || null
       const a = await api.createEfficiency(payload)
       setResult(a)
     } catch (ex) { setError(ex.message) } finally { setBusy(false) }
@@ -66,6 +71,17 @@ export default function EfficiencyForm() {
         <label className="full">Наименование организации
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
+        <div className="form-grid">
+          <label>Область
+            <select value={region} onChange={(e) => setRegion(e.target.value)}>
+              <option value="">— не указана —</option>
+              {OBLASTS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+          <label>Район
+            <input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="например, Ивановский" />
+          </label>
+        </div>
         {GROUPS.map(([title, fields]) => (
           <fieldset key={title}>
             <legend>{title}</legend>

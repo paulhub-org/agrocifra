@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { api } from '../api.js'
 
+const OBLASTS = ['Брестская', 'Витебская', 'Гомельская', 'Гродненская', 'Минская', 'Могилёвская']
 const fmt = (x) => Number(x).toFixed(3).replace('.', ',')
 
 export default function MaturityForm() {
   const [name, setName] = useState('')
   const [need, setNeed] = useState('')
   const [cap, setCap] = useState('')
+  const [region, setRegion] = useState('')
+  const [district, setDistrict] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -19,6 +22,8 @@ export default function MaturityForm() {
         organization_name: name,
         need_avg: Number(need.replace(',', '.')),
         capability_avg: Number(cap.replace(',', '.')),
+        region: region || null,
+        district: district || null,
       }
       const a = await api.createMaturity(payload)
       setResult(a)
@@ -34,6 +39,17 @@ export default function MaturityForm() {
         <label className="full">Наименование организации
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
+        <div className="form-grid">
+          <label>Область
+            <select value={region} onChange={(e) => setRegion(e.target.value)}>
+              <option value="">— не указана —</option>
+              {OBLASTS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+          <label>Район
+            <input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="например, Смолевичский" />
+          </label>
+        </div>
         <div className="form-grid">
           <label>Среднее значение показателей потребности
             <input inputMode="decimal" value={need} onChange={(e) => setNeed(e.target.value)} required />

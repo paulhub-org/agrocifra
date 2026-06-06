@@ -37,6 +37,19 @@ def get_current_user(
     return user
 
 
+def scope_ids(user: UserAccount) -> tuple[int | None, int | None]:
+    """(org_id, region_id) для ограничения выборок по роли.
+
+    organization → своя организация; regional_operator → своя область;
+    digitalization_office и state_authority → без ограничения (None, None).
+    """
+    if user.role == Role.organization.value:
+        return user.organization_id, None
+    if user.role == Role.regional_operator.value:
+        return None, user.region_id
+    return None, None
+
+
 def require_roles(*roles: Role | str):
     """Зависимость: допускает только пользователей с одной из перечисленных ролей."""
     allowed = {r.value if isinstance(r, Role) else r for r in roles}

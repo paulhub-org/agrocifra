@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_roles
+from app.core.deps import get_current_user, require_roles, scope_ids
 from app.db.session import get_db
-from app.models.models import EfficiencyAssessment, MaturityAssessment, Organization
+from app.models.models import EfficiencyAssessment, MaturityAssessment, Organization, Region
 from app.schemas.data import (
     EfficiencyAssessmentOut,
     EfficiencyInputIn,
@@ -26,22 +26,67 @@ from app.services.efficiency import EfficiencyIndexInputs
 router = APIRouter(prefix="/data", tags=["Слой данных"])
 
 
+def _scoped_org_ids(db: Session, user) -> list[int] | None:
+    """Список допустимых организаций по роли (None — без ограничения)."""
+    org_id, region_id = scope_ids(user)
+    if org_id is not None:
+        return [org_id]
+    if region_id is not None:
+        return list(db.execute(
+            select(Organization.id).where(Organization.region_id == region_id)
+        ).scalars().all())
+    return None
+
+
+def _apply_location(db: Session, org_name: str, region: str | None, district: str | None) -> None:
+    """Проставить организации область и район (для отчёта «Среднее КЭц по регионам»)."""
+    if not region and not district:
+        return
+    org = db.execute(select(Organization).where(Organization.name == org_name)).scalar_one_or_none()
+    if not org:
+        return
+    if region:
+        reg = db.execute(select(Region).where(Region.name == region)).scalar_one_or_none()
+        if not reg:
+            reg = Region(name=region)
+            db.add(reg)
+            db.flush()
+        org.region_id = reg.id
+    if district:
+        org.district = district
+    db.flush()
+
+
 @router.get("/organizations", response_model=list[OrganizationOut])
 def list_organizations(db: Session = Depends(get_db),
-                       _user=Depends(get_current_user)):
-    return db.execute(select(Organization)).scalars().all()
+                       user=Depends(get_current_user)):
+    org_id, region_id = scope_ids(user)
+    q = select(Organization)
+    if org_id is not None:
+        q = q.where(Organization.id == org_id)
+    elif region_id is not None:
+        q = q.where(Organization.region_id == region_id)
+    return db.execute(q).scalars().all()
 
 
 @router.get("/assessments/efficiency", response_model=list[EfficiencyAssessmentOut])
 def list_efficiency(db: Session = Depends(get_db),
-                    _user=Depends(get_current_user)):
-    return db.execute(select(EfficiencyAssessment)).scalars().all()
+                    user=Depends(get_current_user)):
+    ids = _scoped_org_ids(db, user)
+    q = select(EfficiencyAssessment)
+    if ids is not None:
+        q = q.where(EfficiencyAssessment.organization_id.in_(ids))
+    return db.execute(q).scalars().all()
 
 
 @router.get("/assessments/maturity", response_model=list[MaturityAssessmentOut])
 def list_maturity(db: Session = Depends(get_db),
-                  _user=Depends(get_current_user)):
-    return db.execute(select(MaturityAssessment)).scalars().all()
+                  user=Depends(get_current_user)):
+    ids = _scoped_org_ids(db, user)
+    q = select(MaturityAssessment)
+    if ids is not None:
+        q = q.where(MaturityAssessment.organization_id.in_(ids))
+    return db.execute(q).scalars().all()
 
 
 @router.post("/etl/jotform/efficiency/sync", response_model=SyncResult)
@@ -91,6 +136,7 @@ def create_efficiency(payload: EfficiencyInputIn, db: Session = Depends(get_db),
     inputs = EfficiencyIndexInputs(**fields)
     assessment = etl.load_efficiency(db, payload.organization_name, inputs,
                                      source="manual", external_id=None)
+    _apply_location(db, payload.organization_name, payload.region, payload.district)
     db.commit()
     return assessment
 
@@ -102,5 +148,6 @@ def create_maturity(payload: MaturityInputIn, db: Session = Depends(get_db),
     assessment = etl.load_maturity(db, payload.organization_name,
                                    payload.need_avg, payload.capability_avg,
                                    source="manual", external_id=None)
+    _apply_location(db, payload.organization_name, payload.region, payload.district)
     db.commit()
     return assessment

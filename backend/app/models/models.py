@@ -41,6 +41,7 @@ class Organization(Base):
     oked: Mapped[str] = mapped_column(String(8), default="011")   # ОКЭД 011–017
     region_id: Mapped[int | None] = mapped_column(ForeignKey("region.id"))
     address: Mapped[str | None] = mapped_column(String(512))
+    district: Mapped[str | None] = mapped_column(String(120))
     periods: Mapped[list["ReportingPeriod"]] = relationship(back_populates="organization")
 
 

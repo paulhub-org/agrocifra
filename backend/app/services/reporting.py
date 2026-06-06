@@ -47,14 +47,31 @@ def maturity_rows(db: Session) -> list[MaturityAssessment]:
     return list(db.execute(select(MaturityAssessment)).scalars().all())
 
 
-def summary(db: Session) -> dict:
-    """Сводка: общие показатели, разрез по регионам, эффективность по организациям."""
+def _allowed_org_ids(db: Session, org_id: int | None, region_id: int | None) -> set[int] | None:
+    """Множество допустимых организаций для ролевого ограничения; None — без ограничения."""
+    if org_id is not None:
+        return {org_id}
+    if region_id is not None:
+        return set(db.execute(
+            select(Organization.id).where(Organization.region_id == region_id)
+        ).scalars().all())
+    return None
+
+
+def summary(db: Session, *, org_id: int | None = None, region_id: int | None = None) -> dict:
+    """Сводка: общие показатели, разрез по регионам, эффективность по организациям.
+
+    Ограничение по роли: org_id — одна организация; region_id — организации области;
+    оба None — все данные (офис цифровизации, госорган).
+    """
     omap = org_region_map(db)
-    eff = efficiency_rows(db)
-    mat = maturity_rows(db)
+    allowed = _allowed_org_ids(db, org_id, region_id)
+    eff = [a for a in efficiency_rows(db) if allowed is None or a.organization_id in allowed]
+    mat = [a for a in maturity_rows(db) if allowed is None or a.organization_id in allowed]
 
     overall = {
-        "organizations": db.execute(select(func.count()).select_from(Organization)).scalar_one(),
+        "organizations": (len(allowed) if allowed is not None
+                          else db.execute(select(func.count()).select_from(Organization)).scalar_one()),
         "efficiency_count": len(eff),
         "maturity_count": len(mat),
         "mean_ke": _safe_mean([a.coefficient for a in eff]),
@@ -105,11 +122,24 @@ def summary(db: Session) -> dict:
         }
         for a in mat
     ]
+    recent = sorted(mat, key=lambda a: a.id, reverse=True)[:5]
+    recent_maturity = [
+        {
+            "organization_id": a.organization_id,
+            "name": omap.get(a.organization_id, {}).get("name", f"#{a.organization_id}"),
+            "region": omap.get(a.organization_id, {}).get("region", "Не указан"),
+            "maturity": a.maturity,
+            "zone": a.zone,
+            "date": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in recent
+    ]
     return {
         "overall": overall,
         "by_region": by_region,
         "efficiency_by_org": efficiency_by_org,
         "maturity_by_org": maturity_by_org,
+        "recent_maturity": recent_maturity,
     }
 
 

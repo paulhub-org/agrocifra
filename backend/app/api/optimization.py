@@ -56,7 +56,7 @@ def run_optimization(
         projects = [
             opt.OptProject(
                 key=p.key or str(i + 1), name=p.name, cost=p.cost, effect=p.effect,
-                var_type=p.var_type, score=p.score, min_share=p.min_share,
+                var_type=p.var_type, score=p.score, maturity=p.maturity, min_share=p.min_share,
                 credit_limit=p.credit_limit,
             )
             for i, p in enumerate(payload.projects)

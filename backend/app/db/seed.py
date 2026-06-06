@@ -85,6 +85,23 @@ def seed_pilot(db: Session) -> None:
             pass
 
 
+def link_demo_users(db: Session) -> None:
+    """Привязать демо-роли к данным: «org» → ведущая организация, «region» → Минская область."""
+    org = db.execute(select(Organization).where(Organization.name.like("%Шипяны%"))).scalar_one_or_none()
+    if org:
+        u = db.execute(select(UserAccount).where(UserAccount.login == "org")).scalar_one_or_none()
+        if u and not u.organization_id:
+            u.organization_id = org.id
+            if org.region_id:
+                u.region_id = org.region_id
+    minsk = db.execute(select(Region).where(Region.name == "Минская")).scalar_one_or_none()
+    if minsk:
+        u = db.execute(select(UserAccount).where(UserAccount.login == "region")).scalar_one_or_none()
+        if u and not u.region_id:
+            u.region_id = minsk.id
+    db.commit()
+
+
 def seed(db: Session) -> None:
     for name in DEMO_REGIONS:
         _get_or_create_region(db, name)
@@ -98,8 +115,9 @@ def seed(db: Session) -> None:
 if __name__ == "__main__":
     db = SessionLocal()
     try:
-        seed(db)        # пользователи и справочник областей (детерминированно)
-        seed_pilot(db)  # пилотные организации, оценки и модель долгового риска
+        seed(db)            # пользователи и справочник областей (детерминированно)
+        seed_pilot(db)      # пилотные организации, оценки и модель долгового риска
+        link_demo_users(db) # привязка демо-ролей к организации/области
         print("Демо-данные и пилотные организации созданы. Пользователи: org / region / office / gov (пароли *123).")
     finally:
         db.close()

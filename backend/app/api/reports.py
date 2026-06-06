@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, scope_ids
 from app.db.session import get_db
 from app.services import exporters, reporting
 
@@ -14,8 +14,9 @@ router = APIRouter(prefix="/reports", tags=["Отчёты и визуализа�
 
 
 @router.get("/summary", summary="Сводка для дашбордов (в целом, по регионам, по организациям)")
-def get_summary(db: Session = Depends(get_db), _user=Depends(get_current_user)):
-    return reporting.summary(db)
+def get_summary(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    org_id, region_id = scope_ids(user)
+    return reporting.summary(db, org_id=org_id, region_id=region_id)
 
 
 @router.get("/organization/{org_id}", summary="Карточка организации со сравнением «до/после»")

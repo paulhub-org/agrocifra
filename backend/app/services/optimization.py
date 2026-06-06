@@ -37,6 +37,7 @@ class OptProject:
     effect: float                     # ожидаемый эффект при полном финансировании, руб.
     var_type: str = "continuous"      # "binary" (всё-или-ничего) | "continuous" (масштабируемый)
     score: float = 0.0                # КЭц или уровень зрелости (для порогового охвата)
+    maturity: float = 0.0             # уровень цифровой зрелости (для отображения в таблице)
     min_share: float = 0.5            # мин. доля стоимости при отборе (для continuous)
     credit_limit: float | None = None  # предел финансирования по кредитоспособности, руб.
     name: str | None = None           # человекочитаемое наименование
@@ -54,6 +55,7 @@ class Allocation:
     funded_share: float
     effect: float
     score: float
+    maturity: float
     above_threshold: bool
 
 
@@ -82,6 +84,7 @@ class AllocationResult:
                     "key": a.key, "name": a.name, "selected": a.selected,
                     "funding": round(a.funding, 2), "funded_share": round(a.funded_share, 4),
                     "effect": round(a.effect, 2), "score": round(a.score, 4),
+                    "maturity": round(a.maturity, 4),
                     "above_threshold": a.above_threshold,
                 }
                 for a in self.allocations
@@ -158,7 +161,7 @@ def optimize_allocation(
         allocations.append(Allocation(
             key=p.key, name=p.name or p.key, selected=sel,
             funding=fv, funded_share=share, effect=eff, score=p.score,
-            above_threshold=above,
+            maturity=p.maturity, above_threshold=above,
         ))
 
     util = total_spend / budget if budget > 0 else 0.0
@@ -193,6 +196,12 @@ def candidate_projects_from_db(db, *, score_metric: str = "efficiency") -> list[
         effect = sum((it.npv or 0.0) + (it.rov or 0.0) for it in items)
         var_type = "continuous" if any(it.var_type == "continuous" for it in items) else "binary"
         org = db.get(Organization, proj.organization_id)
+        mrow = db.execute(
+            select(MaturityAssessment).where(
+                MaturityAssessment.organization_id == proj.organization_id
+            ).order_by(MaturityAssessment.id.desc())
+        ).scalars().first()
+        maturity = float(mrow.maturity) if mrow else 0.0
         if score_metric == "maturity":
             row = db.execute(
                 select(MaturityAssessment).where(
@@ -209,7 +218,7 @@ def candidate_projects_from_db(db, *, score_metric: str = "efficiency") -> list[
             score = row.coefficient if row else 0.0
         projects.append(OptProject(
             key=str(proj.id), cost=float(proj.capex), effect=float(effect),
-            var_type=var_type, score=float(score),
+            var_type=var_type, score=float(score), maturity=maturity,
             credit_limit=float(proj.credit_limit) if proj.credit_limit is not None else None,
             name=org.name if org else f"project:{proj.id}",
         ))

@@ -10,6 +10,7 @@ class ProjectIn(BaseModel):
     effect: float = Field(ge=0, description="Ожидаемый эффект при полном финансировании, руб.")
     var_type: str = Field(default="continuous", pattern="^(binary|continuous)$")
     score: float = Field(default=0.0, description="КЭц или уровень цифровой зрелости")
+    maturity: float = Field(default=0.0, description="Уровень цифровой зрелости (для таблицы)")
     min_share: float = Field(default=0.5, ge=0, le=1)
     credit_limit: float | None = Field(
         default=None, description="Предел финансирования по кредитоспособности, руб."

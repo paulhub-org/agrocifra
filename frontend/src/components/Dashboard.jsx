@@ -58,6 +58,23 @@ export default function Dashboard() {
           </tbody>
         </table>
       )}
+
+      <h3 className="section">Последние оценки зрелости</h3>
+      {data.mat.length === 0 ? <p className="muted">Пока нет данных.</p> : (
+        <table className="grid">
+          <thead><tr><th>Организация</th><th>Зрелость</th><th>Зона</th><th>Источник</th></tr></thead>
+          <tbody>
+            {data.mat.slice(-8).reverse().map((a) => (
+              <tr key={a.id}>
+                <td>#{a.organization_id}</td>
+                <td className="num">{fmt(a.maturity)}</td>
+                <td><span className={`badge ${a.zone === 'высокая' ? 'ok' : a.zone === 'низкая' ? 'bad' : 'mid'}`}>{a.zone}</span></td>
+                <td className="muted">{a.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }
