@@ -27,6 +27,7 @@ export default function Reports() {
   const [orgId, setOrgId] = useState('')
   const [orgRep, setOrgRep] = useState(null)
   const [busy, setBusy] = useState('')
+  const [exportError, setExportError] = useState('')
 
   useEffect(() => { api.summary().then(setData).catch((e) => setError(e.message)) }, [])
   useEffect(() => {
@@ -35,9 +36,10 @@ export default function Reports() {
   }, [orgId])
 
   async function exportFile(fmt) {
-    setBusy(fmt); setError('')
+    setBusy(fmt); setExportError('')
     try { await api.download(`/reports/export.${fmt}`, `АгроЦифра_отчёт.${fmt}`) }
-    catch (e) { setError(e.message) } finally { setBusy('') }
+    catch (e) { setExportError(e.message || 'Не удалось сформировать файл экспорта') }
+    finally { setBusy('') }
   }
 
   if (error) return <div className="error">{error}</div>
@@ -58,6 +60,7 @@ export default function Reports() {
           <button className="ghost" disabled={busy} onClick={() => exportFile('pdf')}>{busy === 'pdf' ? '…' : 'PDF'}</button>
         </div>
       </div>
+      {exportError && <div className="error" style={{ marginTop: 8 }}>{exportError}</div>}
 
       {eff.length === 0 && mat.length === 0 && (
         <p className="muted">Нет данных для визуализации. Введите или импортируйте оценки.</p>

@@ -8,8 +8,8 @@ const NAV = [
   { to: '/assessments', label: 'Оценки' },
   { to: '/reports', label: 'Отчёты' },
   { to: '/optimization', label: 'Оптимизация', roles: ['digitalization_office', 'state_authority', 'organization'] },
-  { to: '/entry/efficiency', label: 'Ввод · эффективность', roles: ['organization', 'digitalization_office'] },
   { to: '/entry/maturity', label: 'Ввод · зрелость', roles: ['organization', 'digitalization_office'] },
+  { to: '/entry/efficiency', label: 'Ввод · эффективность', roles: ['organization', 'digitalization_office'] },
 ]
 
 export default function Layout() {

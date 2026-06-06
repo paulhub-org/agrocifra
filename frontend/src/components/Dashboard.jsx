@@ -38,6 +38,8 @@ export default function Dashboard() {
   const meKE = mean(data.eff.map((a) => a.coefficient))
   const meMat = mean(data.mat.map((a) => a.maturity))
   const effOk = data.eff.filter((a) => a.coefficient > 1).length
+  const isOffice = user?.role === 'digitalization_office'
+  const orgName = Object.fromEntries(data.orgs.map((o) => [o.id, o.name]))
 
   return (
     <div className="stagger">
@@ -55,16 +57,17 @@ export default function Dashboard() {
         )}
       </div>
 
-      <h3 className="section">Последние оценки эффективности</h3>
-      {data.eff.length === 0 ? <p className="muted">Пока нет данных.</p> : (
+      <h3 className="section">Последние оценки зрелости</h3>
+      {data.mat.length === 0 ? <p className="muted">Пока нет данных.</p> : (
         <table className="grid">
-          <thead><tr><th>Организация</th><th>КЭц</th><th>Зона</th><th>Источник</th></tr></thead>
+          <thead><tr>{isOffice && <th>#</th>}<th>Организация</th><th>Зрелость</th><th>Зона</th><th>Источник</th></tr></thead>
           <tbody>
-            {data.eff.slice(-8).reverse().map((a) => (
+            {data.mat.slice(-8).reverse().map((a) => (
               <tr key={a.id}>
-                <td>#{a.organization_id}</td>
-                <td className="num">{fmt(a.coefficient)}</td>
-                <td><span className={`badge ${a.zone === 'эффективна' ? 'ok' : a.zone === 'неэффективна' ? 'bad' : 'mid'}`}>{a.zone}</span></td>
+                {isOffice && <td className="muted">#{a.organization_id}</td>}
+                <td>{orgName[a.organization_id] || `#${a.organization_id}`}</td>
+                <td className="num">{fmt(a.maturity)}</td>
+                <td><span className={`badge ${a.zone === 'высокая' ? 'ok' : a.zone === 'низкая' ? 'bad' : 'mid'}`}>{a.zone}</span></td>
                 <td className="muted">{a.source}</td>
               </tr>
             ))}
@@ -72,16 +75,17 @@ export default function Dashboard() {
         </table>
       )}
 
-      <h3 className="section">Последние оценки зрелости</h3>
-      {data.mat.length === 0 ? <p className="muted">Пока нет данных.</p> : (
+      <h3 className="section">Последние оценки эффективности</h3>
+      {data.eff.length === 0 ? <p className="muted">Пока нет данных.</p> : (
         <table className="grid">
-          <thead><tr><th>Организация</th><th>Зрелость</th><th>Зона</th><th>Источник</th></tr></thead>
+          <thead><tr>{isOffice && <th>#</th>}<th>Организация</th><th>КЭц</th><th>Зона</th><th>Источник</th></tr></thead>
           <tbody>
-            {data.mat.slice(-8).reverse().map((a) => (
+            {data.eff.slice(-8).reverse().map((a) => (
               <tr key={a.id}>
-                <td>#{a.organization_id}</td>
-                <td className="num">{fmt(a.maturity)}</td>
-                <td><span className={`badge ${a.zone === 'высокая' ? 'ok' : a.zone === 'низкая' ? 'bad' : 'mid'}`}>{a.zone}</span></td>
+                {isOffice && <td className="muted">#{a.organization_id}</td>}
+                <td>{orgName[a.organization_id] || `#${a.organization_id}`}</td>
+                <td className="num">{fmt(a.coefficient)}</td>
+                <td><span className={`badge ${a.zone === 'эффективна' ? 'ok' : a.zone === 'неэффективна' ? 'bad' : 'mid'}`}>{a.zone}</span></td>
                 <td className="muted">{a.source}</td>
               </tr>
             ))}

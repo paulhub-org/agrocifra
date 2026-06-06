@@ -75,8 +75,20 @@ def build_word(db: Session) -> tuple[bytes, str, str]:
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.shared import Pt, RGBColor
 
+    from docx.shared import Cm
+
     data = summary(db)
     doc = Document()
+    # Поля страницы (Инструкция ВАК / требования заказчика): верх/низ 2 см, левое 3 см, правое 1 см
+    section = doc.sections[0]
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(3)
+    section.right_margin = Cm(1)
+    # Автор документа — отсутствует (по умолчанию python-docx проставляет «python-docx»)
+    cp = doc.core_properties
+    cp.author = ""
+    cp.last_modified_by = ""
     style = doc.styles["Normal"]
     style.font.name = "Times New Roman"
     style.font.size = Pt(12)
@@ -143,13 +155,26 @@ def build_word(db: Session) -> tuple[bytes, str, str]:
 
 # ─────────────────────────────── PDF ───────────────────────────────
 def _register_cyrillic_font() -> tuple[str, str]:
+    """Зарегистрировать кириллический шрифт для PDF.
+
+    Шрифты DejaVu поставляются в составе приложения (app/services/fonts), что
+    гарантирует корректный экспорт PDF в любом окружении, включая slim-образ
+    Docker, где системные шрифты отсутствуют. Системный путь — запасной вариант.
+    """
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    base = Path("/usr/share/fonts/truetype/dejavu")
-    pdfmetrics.registerFont(TTFont("DejaVuSerif", str(base / "DejaVuSerif.ttf")))
-    pdfmetrics.registerFont(TTFont("DejaVuSerif-Bold", str(base / "DejaVuSerif-Bold.ttf")))
-    return "DejaVuSerif", "DejaVuSerif-Bold"
+    bundled = Path(__file__).resolve().parent / "fonts"
+    system = Path("/usr/share/fonts/truetype/dejavu")
+    for base in (bundled, system):
+        regular = base / "DejaVuSerif.ttf"
+        bold = base / "DejaVuSerif-Bold.ttf"
+        if regular.exists() and bold.exists():
+            if "DejaVuSerif" not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont("DejaVuSerif", str(regular)))
+                pdfmetrics.registerFont(TTFont("DejaVuSerif-Bold", str(bold)))
+            return "DejaVuSerif", "DejaVuSerif-Bold"
+    raise RuntimeError("Не найден кириллический шрифт DejaVuSerif для экспорта в PDF")
 
 
 def build_pdf(db: Session) -> tuple[bytes, str, str]:
