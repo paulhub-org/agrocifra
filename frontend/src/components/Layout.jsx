@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
 
@@ -12,8 +13,12 @@ const NAV = [
 ]
 
 export default function Layout() {
-  const { user, roleLabel, logout } = useAuth()
+  const { user, roleLabel, logout, previewing, switchRole, restoreRole } = useAuth()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const isOffice = user?.role === 'digitalization_office'
+  const isAdmin = ['digitalization_office', 'state_authority'].includes(user?.role)
+  const VIEW_ROLES = [['state_authority', 'Госорган'], ['regional_operator', 'Региональный оператор'], ['organization', 'Организация']]
   const items = NAV.filter((i) => !i.roles || (user && i.roles.includes(user.role)))
   return (
     <div className="app">
@@ -38,9 +43,52 @@ export default function Layout() {
         <header className="topbar">
           <div className="who">
             <span className="role-chip">{roleLabel}</span>
-            <b>{user?.full_name || user?.login}</b>
+            {previewing && <span className="badge mid">режим просмотра</span>}
           </div>
-          <button className="ghost" onClick={() => { logout(); navigate('/login') }}>Выйти</button>
+          <div className="account">
+            <button className="account-btn" onClick={() => setMenuOpen((o) => !o)}>
+              <b>{user?.full_name || user?.login}</b><span className="caret">▾</span>
+            </button>
+            {menuOpen && (
+              <div className="account-menu" onMouseLeave={() => setMenuOpen(false)}>
+                <div className="account-head">
+                  <b>{user?.full_name || user?.login}</b>
+                  <small className="muted">{roleLabel}</small>
+                </div>
+                {isOffice && !previewing && (
+                  <>
+                    <div className="menu-label">Просмотр в роли</div>
+                    {VIEW_ROLES.map(([r, label]) => (
+                      <button key={r} className="menu-item"
+                        onClick={() => { setMenuOpen(false); switchRole(r).then(() => navigate('/')).catch(() => {}) }}>
+                        {label}
+                      </button>
+                    ))}
+                    <div className="menu-sep" />
+                  </>
+                )}
+                {previewing && (
+                  <>
+                    <button className="menu-item"
+                      onClick={() => { setMenuOpen(false); restoreRole(); navigate('/') }}>
+                      ← Вернуться к роли «Офис цифровизации»
+                    </button>
+                    <div className="menu-sep" />
+                  </>
+                )}
+                {isAdmin && (
+                  <button className="menu-item"
+                    onClick={() => { setMenuOpen(false); navigate('/pending') }}>
+                    Заявки на регистрацию
+                  </button>
+                )}
+                <button className="menu-item danger"
+                  onClick={() => { setMenuOpen(false); logout(); navigate('/login') }}>
+                  Выйти
+                </button>
+              </div>
+            )}
+          </div>
         </header>
         <main className="content"><Outlet /></main>
         <footer className="app-footer">

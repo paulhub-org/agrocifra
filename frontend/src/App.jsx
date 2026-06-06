@@ -9,9 +9,11 @@ import Reports from './components/Reports.jsx'
 import Optimization from './components/Optimization.jsx'
 import EfficiencyForm from './components/EfficiencyForm.jsx'
 import MaturityForm from './components/MaturityForm.jsx'
+import PendingUsers from './components/PendingUsers.jsx'
 
 const DATA_ENTRY = ['organization', 'digitalization_office']
 const OPT_ROLES = ['digitalization_office', 'state_authority']
+const ADMIN_ROLES = ['digitalization_office', 'state_authority']
 
 function Protected({ children, roles }) {
   const { token, user, loading } = useAuth()
@@ -37,6 +39,8 @@ export default function App() {
           element={<Protected roles={DATA_ENTRY}><EfficiencyForm /></Protected>} />
         <Route path="entry/maturity"
           element={<Protected roles={DATA_ENTRY}><MaturityForm /></Protected>} />
+        <Route path="pending"
+          element={<Protected roles={ADMIN_ROLES}><PendingUsers /></Protected>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

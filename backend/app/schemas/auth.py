@@ -26,3 +26,21 @@ class UserCreate(BaseModel):
     email: str | None = None
     organization_id: int | None = None
     region_id: int | None = None
+
+
+class RegisterRequest(BaseModel):
+    """Самостоятельная регистрация (учётная запись создаётся неактивной — требует подтверждения)."""
+    login: str
+    password: str
+    role: str = "organization"
+    full_name: str | None = None
+    email: str | None = None
+
+
+class SwitchRoleRequest(BaseModel):
+    """Переключение роли просмотра (режим «просмотр как», только для офиса цифровизации)."""
+    role: str
+
+
+class MessageOut(BaseModel):
+    message: str

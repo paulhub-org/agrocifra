@@ -142,3 +142,18 @@ legend { font-family: "Spectral", serif; font-weight: 600; color: var(--green-90
 .app-footer a:hover{text-decoration:underline}
 .jotform-link{margin:6px 0 14px;font-size:13px}
 .jotform-link a{color:#2f6f4f;font-weight:600}
+
+/* Спринт 8: выпадающее меню учётной записи (задачи 10/14), регистрация (16) */
+.account{position:relative}
+.account-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid #d8d2c4;border-radius:8px;padding:6px 12px;cursor:pointer;font:inherit;color:inherit}
+.account-btn:hover{background:#f3f1ea}
+.account-btn .caret{color:#8a8270;font-size:12px}
+.account-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:248px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.12);padding:6px;z-index:50}
+.account-head{padding:8px 10px;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid #eee;margin-bottom:4px}
+.menu-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8a8270;padding:6px 10px 2px}
+.menu-item{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;font:inherit;color:#33414f}
+.menu-item:hover{background:#f3f1ea}
+.menu-item.danger{color:#a23b3b}
+.menu-sep{height:1px;background:#eee;margin:4px 0}
+.link-btn{background:transparent;border:0;color:#2f6f4f;cursor:pointer;font:inherit;text-decoration:underline;margin-top:8px;padding:4px}
+

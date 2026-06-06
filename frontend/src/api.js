@@ -34,6 +34,10 @@ export const api = {
   login: (username, password) =>
     request('/auth/login', { method: 'POST', form: { username, password }, auth: false }),
   me: () => request('/auth/me'),
+  register: (payload) => request('/auth/register', { method: 'POST', body: payload, auth: false }),
+  pendingUsers: () => request('/auth/pending'),
+  activateUser: (id) => request(`/auth/users/${id}/activate`, { method: 'POST' }),
+  switchRole: (role) => request('/auth/switch-role', { method: 'POST', body: { role } }),
   organizations: () => request('/data/organizations'),
   efficiencyAssessments: () => request('/data/assessments/efficiency'),
   maturityAssessments: () => request('/data/assessments/maturity'),
