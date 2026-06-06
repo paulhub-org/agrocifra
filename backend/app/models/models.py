@@ -26,6 +26,7 @@ class Role(str, enum.Enum):
     regional_operator = "regional_operator"          # региональный оператор
     digitalization_office = "digitalization_office"  # офис цифровизации
     state_authority = "state_authority"              # государственный орган
+    district_operator = "district_operator"          # районный оператор (райисполком)
 
 
 class Region(Base):
@@ -56,6 +57,7 @@ class UserAccount(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     organization_id: Mapped[int | None] = mapped_column(ForeignKey("organization.id"))
     region_id: Mapped[int | None] = mapped_column(ForeignKey("region.id"))
+    district: Mapped[str | None] = mapped_column(String(120))  # район — для роли «районный оператор»
 
 
 class ReportingPeriod(Base):

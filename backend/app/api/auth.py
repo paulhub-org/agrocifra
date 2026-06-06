@@ -17,6 +17,7 @@ _ROLE_VALUES = {r.value for r in Role}
 _DEMO_LOGIN = {
     Role.organization.value: "org",
     Role.regional_operator.value: "region",
+    Role.district_operator.value: "district",
     Role.digitalization_office.value: "office",
     Role.state_authority.value: "gov",
 }

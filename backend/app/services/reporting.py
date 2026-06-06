@@ -47,10 +47,21 @@ def maturity_rows(db: Session) -> list[MaturityAssessment]:
     return list(db.execute(select(MaturityAssessment)).scalars().all())
 
 
-def _allowed_org_ids(db: Session, org_id: int | None, region_id: int | None) -> set[int] | None:
-    """Множество допустимых организаций для ролевого ограничения; None — без ограничения."""
+def _allowed_org_ids(db: Session, org_id: int | None, region_id: int | None,
+                     district: str | None = None) -> set[int] | None:
+    """Множество допустимых организаций для ролевого ограничения; None — без ограничения.
+
+    org_id — одна организация; (region_id, district) — организации района;
+    region_id — организации области; всё None — без ограничения.
+    """
     if org_id is not None:
         return {org_id}
+    if region_id is not None and district:
+        return set(db.execute(
+            select(Organization.id).where(
+                Organization.region_id == region_id, Organization.district == district
+            )
+        ).scalars().all())
     if region_id is not None:
         return set(db.execute(
             select(Organization.id).where(Organization.region_id == region_id)
@@ -58,14 +69,15 @@ def _allowed_org_ids(db: Session, org_id: int | None, region_id: int | None) -> 
     return None
 
 
-def summary(db: Session, *, org_id: int | None = None, region_id: int | None = None) -> dict:
+def summary(db: Session, *, org_id: int | None = None, region_id: int | None = None,
+            district: str | None = None) -> dict:
     """Сводка: общие показатели, разрез по регионам, эффективность по организациям.
 
-    Ограничение по роли: org_id — одна организация; region_id — организации области;
-    оба None — все данные (офис цифровизации, госорган).
+    Ограничение по роли: org_id — одна организация; (region_id, district) — организации
+    района; region_id — организации области; всё None — все данные (офис, госорган).
     """
     omap = org_region_map(db)
-    allowed = _allowed_org_ids(db, org_id, region_id)
+    allowed = _allowed_org_ids(db, org_id, region_id, district)
     eff = [a for a in efficiency_rows(db) if allowed is None or a.organization_id in allowed]
     mat = [a for a in maturity_rows(db) if allowed is None or a.organization_id in allowed]
 

@@ -37,17 +37,20 @@ def get_current_user(
     return user
 
 
-def scope_ids(user: UserAccount) -> tuple[int | None, int | None]:
-    """(org_id, region_id) для ограничения выборок по роли.
+def scope_filters(user: UserAccount) -> tuple[int | None, int | None, str | None]:
+    """(org_id, region_id, district) для ограничения выборок по роли.
 
     organization → своя организация; regional_operator → своя область;
-    digitalization_office и state_authority → без ограничения (None, None).
+    district_operator → своя область и район; digitalization_office и
+    state_authority → без ограничения (None, None, None).
     """
     if user.role == Role.organization.value:
-        return user.organization_id, None
+        return user.organization_id, None, None
     if user.role == Role.regional_operator.value:
-        return None, user.region_id
-    return None, None
+        return None, user.region_id, None
+    if user.role == Role.district_operator.value:
+        return None, user.region_id, user.district
+    return None, None, None
 
 
 def require_roles(*roles: Role | str):

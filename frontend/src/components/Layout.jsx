@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
+import { useOrgGate } from '../orgGate.jsx'
 
+const ALL_ROLES = ['organization', 'regional_operator', 'district_operator', 'digitalization_office', 'state_authority']
+// «Штабные» роли (без «Организации»): область, район, офис, госорган
+const STAFF_ROLES = ['regional_operator', 'district_operator', 'digitalization_office', 'state_authority']
 const NAV = [
-  { to: '/', label: 'Дашборд', end: true },
-  { to: '/organizations', label: 'Организации' },
-  { to: '/assessments', label: 'Оценки' },
-  { to: '/reports', label: 'Отчёты' },
+  // orgNeedsData: для роли «Организация» доступно только при наличии внесённых данных (задача 14)
+  { to: '/', label: 'Дашборд', end: true, roles: ALL_ROLES, orgNeedsData: true },
+  { to: '/organizations', label: 'Организации', roles: STAFF_ROLES },         // у «Организации» отсутствует (задача 15)
+  { to: '/assessments', label: 'Оценки', roles: ALL_ROLES, orgNeedsData: true },
+  { to: '/reports', label: 'Отчёты', roles: STAFF_ROLES },                    // у «Организации» отсутствует (задача 15)
   { to: '/optimization', label: 'Оптимизация', roles: ['digitalization_office', 'state_authority', 'organization'] },
   { to: '/entry/maturity', label: 'Ввод · зрелость', roles: ['organization', 'digitalization_office'] },
   { to: '/entry/efficiency', label: 'Ввод · эффективность', roles: ['organization', 'digitalization_office'] },
@@ -18,8 +23,11 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const isOffice = user?.role === 'digitalization_office'
   const isAdmin = ['digitalization_office', 'state_authority'].includes(user?.role)
-  const VIEW_ROLES = [['state_authority', 'Госорган'], ['regional_operator', 'Региональный оператор'], ['organization', 'Организация']]
-  const items = NAV.filter((i) => !i.roles || (user && i.roles.includes(user.role)))
+  const VIEW_ROLES = [['state_authority', 'Госорган'], ['regional_operator', 'Региональный оператор'], ['district_operator', 'Районный оператор'], ['organization', 'Организация']]
+  const { hasData: orgHasData } = useOrgGate()
+  const items = NAV.filter((i) =>
+    user && i.roles.includes(user.role) &&
+    !(i.orgNeedsData && user.role === 'organization' && !orgHasData))
   return (
     <div className="app">
       <aside className="side">

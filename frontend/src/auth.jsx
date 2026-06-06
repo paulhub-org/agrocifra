@@ -6,6 +6,7 @@ const AuthCtx = createContext(null)
 export const ROLE_LABELS = {
   organization: 'Организация',
   regional_operator: 'Региональный оператор',
+  district_operator: 'Районный оператор',
   digitalization_office: 'Офис цифровизации',
   state_authority: 'Государственный орган',
 }

@@ -18,6 +18,7 @@ from app.services.normalize import clean_text
 DEMO_USERS = [
     ("org", "org123", Role.organization, "Оператор организации"),
     ("region", "region123", Role.regional_operator, "Региональный оператор"),
+    ("district", "district123", Role.district_operator, "Районный оператор"),
     ("office", "office123", Role.digitalization_office, "Офис цифровизации"),
     ("gov", "gov123", Role.state_authority, "Государственный орган"),
 ]
@@ -34,6 +35,24 @@ _OBLAST = {
     "Гродненская": "Гродненская", "Минская": "Минская",
     "Могилевская": "Могилёвская", "Могилёвская": "Могилёвская",
 }
+
+# Район пилотной организации (по фрагменту наименования) — V2.0, задачи 1 и 13
+_DISTRICT = {
+    "Шипяны": "Смолевичский",
+    "Достоево": "Ивановский",
+    "ДолжаАгро": "Лиозненский",
+    "Криничная": "Мозырский",
+    "Олекшицы": "Берестовицкий",
+    "Минскоблагросервис": "Мядельский",
+    "БГСХА": "Горецкий",
+}
+
+
+def _district_for(org_name: str | None) -> str | None:
+    for fragment, district in _DISTRICT.items():
+        if fragment in (org_name or ""):
+            return district
+    return None
 
 
 def _region_name(address: str | None) -> str | None:
@@ -69,6 +88,9 @@ def _assign_regions_and_addresses(db: Session) -> None:
         region_name = _region_name(address)
         if region_name:
             org.region_id = _get_or_create_region(db, region_name).id
+        district = _district_for(org.name)
+        if district and not org.district:
+            org.district = district
     db.commit()
 
 
@@ -99,6 +121,10 @@ def link_demo_users(db: Session) -> None:
         u = db.execute(select(UserAccount).where(UserAccount.login == "region")).scalar_one_or_none()
         if u and not u.region_id:
             u.region_id = minsk.id
+        ud = db.execute(select(UserAccount).where(UserAccount.login == "district")).scalar_one_or_none()
+        if ud and not ud.region_id:
+            ud.region_id = minsk.id
+            ud.district = "Смолевичский"   # район ведущей организации «Шипяны-АСК»
     db.commit()
 
 
@@ -118,6 +144,6 @@ if __name__ == "__main__":
         seed(db)            # пользователи и справочник областей (детерминированно)
         seed_pilot(db)      # пилотные организации, оценки и модель долгового риска
         link_demo_users(db) # привязка демо-ролей к организации/области
-        print("Демо-данные и пилотные организации созданы. Пользователи: org / region / office / gov (пароли *123).")
+        print("Демо-данные и пилотные организации созданы. Пользователи: org / region / district / office / gov (пароли *123).")
     finally:
         db.close()

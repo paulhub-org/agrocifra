@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_roles, scope_ids
+from app.core.deps import get_current_user, require_roles, scope_filters
 from app.db.session import get_db
 from app.models.models import EfficiencyAssessment, MaturityAssessment, Organization, Region
 from app.schemas.data import (
@@ -28,9 +28,15 @@ router = APIRouter(prefix="/data", tags=["Слой данных"])
 
 def _scoped_org_ids(db: Session, user) -> list[int] | None:
     """Список допустимых организаций по роли (None — без ограничения)."""
-    org_id, region_id = scope_ids(user)
+    org_id, region_id, district = scope_filters(user)
     if org_id is not None:
         return [org_id]
+    if region_id is not None and district:
+        return list(db.execute(
+            select(Organization.id).where(
+                Organization.region_id == region_id, Organization.district == district
+            )
+        ).scalars().all())
     if region_id is not None:
         return list(db.execute(
             select(Organization.id).where(Organization.region_id == region_id)
@@ -60,10 +66,12 @@ def _apply_location(db: Session, org_name: str, region: str | None, district: st
 @router.get("/organizations", response_model=list[OrganizationOut])
 def list_organizations(db: Session = Depends(get_db),
                        user=Depends(get_current_user)):
-    org_id, region_id = scope_ids(user)
+    org_id, region_id, district = scope_filters(user)
     q = select(Organization)
     if org_id is not None:
         q = q.where(Organization.id == org_id)
+    elif region_id is not None and district:
+        q = q.where(Organization.region_id == region_id, Organization.district == district)
     elif region_id is not None:
         q = q.where(Organization.region_id == region_id)
     return db.execute(q).scalars().all()
