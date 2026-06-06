@@ -157,3 +157,16 @@ legend { font-family: "Spectral", serif; font-weight: 600; color: var(--green-90
 .menu-sep{height:1px;background:#eee;margin:4px 0}
 .link-btn{background:transparent;border:0;color:#2f6f4f;cursor:pointer;font:inherit;text-decoration:underline;margin-top:8px;padding:4px}
 
+
+/* Спринт 8 (задача 11): карты областей Беларуси */
+.map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.map-title{font-family:Spectral,serif;font-size:16px;color:#1b4332;margin:2px 0 8px}
+.belarus-map{width:100%;height:auto;max-height:430px;display:block}
+.map-region{transition:fill .15s,stroke-width .15s}
+.map-region:hover{stroke:#1b4332;stroke-width:2}
+.map-label{font-family:'PT Sans',system-ui,sans-serif;font-size:11px;fill:#fff;font-weight:600;pointer-events:none;paint-order:stroke;stroke:rgba(0,0,0,.38);stroke-width:2.2px}
+.map-label-val{font-size:12px;font-weight:700}
+.map-legend{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#5a6b7b}
+.legend-bar{flex:0 0 120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#cee4d3,#1b4332)}
+.legend-na{display:inline-flex;align-items:center;gap:4px;margin-left:6px}
+.legend-na i{width:12px;height:12px;border-radius:3px;background:#e7e9e6;display:inline-block}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import { api } from '../api.js'
+import BelarusChoropleth from './BelarusChoropleth.jsx'
 
 const Plot = createPlotlyComponent(Plotly)
 
@@ -109,20 +110,20 @@ export default function Reports() {
       )}
 
       {regions.length > 0 && (
-        <div className="card chart">
-          <Plot
-            data={[
-              {
-                type: 'bar', x: regions.map((r) => r.region), y: regions.map((r) => r.mean_ke),
-                marker: { color: COLORS.green },
-                text: regions.map((r) => r.mean_ke.toFixed(2).replace('.', ',')),
-                textposition: 'outside', hovertemplate: '%{x}<br>среднее КЭц = %{y:.2f}<extra></extra>',
-              },
-            ]}
-            layout={baseLayout('Среднее КЭц по регионам', {
-              yaxis: { title: 'Среднее КЭц' }, xaxis: { automargin: true },
-            })}
-            config={CONFIG} style={plotStyle} useResizeHandler
+        <div className="map-grid">
+          <BelarusChoropleth
+            title="Среднее КЭц по регионам"
+            unit="КЭц"
+            values={Object.fromEntries(
+              data.by_region.filter((r) => r.mean_ke != null).map((r) => [r.region, r.mean_ke]),
+            )}
+          />
+          <BelarusChoropleth
+            title="Средняя цифровая зрелость по регионам"
+            unit="КЗ"
+            values={Object.fromEntries(
+              data.by_region.filter((r) => r.mean_maturity != null).map((r) => [r.region, r.mean_maturity]),
+            )}
           />
         </div>
       )}
