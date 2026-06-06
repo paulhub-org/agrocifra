@@ -12,7 +12,7 @@ import MaturityForm from './components/MaturityForm.jsx'
 import PendingUsers from './components/PendingUsers.jsx'
 
 const DATA_ENTRY = ['organization', 'digitalization_office']
-const OPT_ROLES = ['digitalization_office', 'state_authority']
+const OPT_ROLES = ['digitalization_office', 'state_authority', 'organization']
 const ADMIN_ROLES = ['digitalization_office', 'state_authority']
 
 function Protected({ children, roles }) {

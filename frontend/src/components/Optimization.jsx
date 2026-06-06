@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 
 const Plot = createPlotlyComponent(Plotly)
 const num = (v) => Number(String(v).replace(',', '.')) || 0
@@ -18,7 +19,7 @@ const SEED = [
   { name: 'Учхоз БГСХА', cost: 950000, effect: 1350000, var_type: 'continuous', score: 1.08, maturity: 0.26, credit_limit: '' },
 ]
 
-export default function Optimization() {
+function PortfolioOptimization() {
   const [budget, setBudget] = useState(4000000)
   const [coverageWeight, setCoverageWeight] = useState(0)
   const [threshold, setThreshold] = useState(1.0)
@@ -205,6 +206,51 @@ export default function Optimization() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function Optimization() {
+  const { user } = useAuth()
+  return user?.role === 'organization' ? <OrgOptimization /> : <PortfolioOptimization />
+}
+
+function OrgOptimization() {
+  const [budget, setBudget] = useState('')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function run() {
+    setError(''); setResult(null); setBusy(true)
+    try {
+      const res = await api.optimizeMine({ budget: budget === '' ? null : num(budget), threshold: 1.0 })
+      setResult(res)
+    } catch (ex) { setError(ex.message) } finally { setBusy(false) }
+  }
+
+  const a = result?.allocations?.[0]
+  return (
+    <div>
+      <h2 className="page-title">Оптимальный уровень затрат на цифровизацию</h2>
+      <p className="muted">Расчёт по фактическим показателям вашей организации. Решатель PuLP/CBC; учитывается предел кредитоспособности (по запасу DSCR).</p>
+      <p className="jotform-link">Обновить фактические показатели: <a href="https://form.jotform.com/222133487281353" target="_blank" rel="noopener noreferrer">анкета эффективности</a>.</p>
+      <div className="form-grid" style={{ maxWidth: 460, marginBottom: 12 }}>
+        <label>Бюджет, руб. (необязательно — по умолчанию полная стоимость проекта)
+          <input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="авто" />
+        </label>
+      </div>
+      <button className="primary" onClick={run} disabled={busy}>{busy ? 'Расчёт…' : 'Рассчитать оптимальный уровень затрат'}</button>
+      {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
+      {result && a && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
+          <Stat label="Оптимальный уровень затрат" value={money(a.funding) + ' руб.'} />
+          <Stat label="Доля от полной стоимости" value={`${Math.round(a.funded_share * 100)}%`} />
+          <Stat label="Ожидаемый эффект (ЧДД)" value={money(a.effect) + ' руб.'} />
+          <Stat label="КЭц" value={(a.score ?? 0).toFixed(2).replace('.', ',')} />
+          <Stat label="Цифровая зрелость" value={(a.maturity ?? 0).toFixed(2).replace('.', ',')} />
         </div>
       )}
     </div>

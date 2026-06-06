@@ -63,6 +63,7 @@ export const api = {
     return res.json()
   },
   optimize: (payload) => request('/optimization/run', { method: 'POST', body: payload }),
+  optimizeMine: (payload) => request('/optimization/run-mine', { method: 'POST', body: payload }),
   optimizationRuns: () => request('/optimization/runs'),
   optimizationRun: (id) => request(`/optimization/runs/${id}`),
   summary: () => request('/reports/summary'),

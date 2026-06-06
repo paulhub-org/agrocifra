@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
 const fmt = (x) => (x == null ? '—' : x.toFixed(2).replace('.', ','))
+const money = (x) => (x == null ? '—' : Number(x).toLocaleString('ru-RU'))
 
 function Tile({ value, label, hint, accent }) {
   return (
@@ -15,13 +17,21 @@ function Tile({ value, label, hint, accent }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [optimal, setOptimal] = useState(null)
   useEffect(() => {
     Promise.all([api.organizations(), api.efficiencyAssessments(), api.maturityAssessments()])
       .then(([orgs, eff, mat]) => setData({ orgs, eff, mat }))
       .catch((e) => setError(e.message))
   }, [])
+  useEffect(() => {
+    if (user?.role !== 'organization') return
+    api.optimizeMine({ budget: null, threshold: 1.0 })
+      .then((r) => setOptimal(r?.allocations?.[0]?.funding ?? null))
+      .catch(() => setOptimal(null))
+  }, [user])
   if (error) return <div className="error">{error}</div>
   if (!data) return <div className="muted">Загрузка…</div>
 
@@ -40,6 +50,9 @@ export default function Dashboard() {
         <Tile value={`${effOk} / ${data.eff.length}`} label="Эффективных (КЭц > 1,0)" />
         <Tile value={data.mat.length} label="Оценок зрелости" />
         <Tile value={fmt(meMat)} label="Средняя цифровая зрелость" />
+        {user?.role === 'organization' && (
+          <Tile value={money(optimal)} label="Оптимальный уровень затрат, руб." accent />
+        )}
       </div>
 
       <h3 className="section">Последние оценки эффективности</h3>

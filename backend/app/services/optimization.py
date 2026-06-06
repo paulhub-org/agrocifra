@@ -169,7 +169,8 @@ def optimize_allocation(
                             selected_count, above_count, allocations)
 
 
-def candidate_projects_from_db(db, *, score_metric: str = "efficiency") -> list[OptProject]:
+def candidate_projects_from_db(db, *, score_metric: str = "efficiency",
+                               org_id: int | None = None) -> list[OptProject]:
     """Построить проекты-кандидаты из БД (Project + DigitalProjectItem).
 
     Стоимость = Project.capex; эффект = Σ(npv + rov) элементов портфеля; тип переменной —
@@ -187,7 +188,10 @@ def candidate_projects_from_db(db, *, score_metric: str = "efficiency") -> list[
     )
 
     projects: list[OptProject] = []
-    for proj in db.execute(select(Project)).scalars().all():
+    proj_q = select(Project)
+    if org_id is not None:
+        proj_q = proj_q.where(Project.organization_id == org_id)
+    for proj in db.execute(proj_q).scalars().all():
         if not proj.capex:
             continue
         items = db.execute(

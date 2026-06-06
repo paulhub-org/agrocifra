@@ -53,3 +53,13 @@ def test_switch_role_office_only(client):
     org = _login(client, "org", "org123")
     assert client.post("/auth/switch-role", json={"role": "state_authority"},
                        headers=_auth(org)).status_code == 403
+
+
+def test_run_mine_guards(client):
+    """Задача 6: эндпоинт доступен только роли «Организация»; без привязки к организации — 422."""
+    # демо-пользователь «org» в тестовой БД не привязан к организации → 422
+    org = _login(client, "org", "org123")
+    assert client.post("/optimization/run-mine", json={}, headers=_auth(org)).status_code == 422
+    # офис не имеет роли «Организация» → 403
+    office = _login(client, "office", "office123")
+    assert client.post("/optimization/run-mine", json={}, headers=_auth(office)).status_code == 403

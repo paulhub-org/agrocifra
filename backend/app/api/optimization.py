@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, require_roles
 from app.db.session import get_db
 from app.models.models import OptimizationRun, Role
-from app.schemas.optimization import OptimizationRequest
+from app.schemas.optimization import MineOptimizationRequest, OptimizationRequest
 from app.services import etl
 from app.services import optimization as opt
 
@@ -112,3 +112,45 @@ def get_run(run_id: int, db: Session = Depends(get_db), _user=Depends(get_curren
     if not r:
         raise HTTPException(status_code=404, detail="Запуск не найден")
     return {"id": r.id, "status": r.status, "params": r.params, **(r.result or {})}
+
+
+@router.post("/run-mine", status_code=201,
+             summary="Оптимальный уровень затрат для своей организации (роль «Организация»)")
+def run_optimization_mine(
+    payload: MineOptimizationRequest,
+    db: Session = Depends(get_db),
+    user=Depends(require_roles(Role.organization)),
+):
+    """Расчёт оптимального уровня затрат на цифровизацию по данным только своей организации.
+
+    Кандидаты берутся из проекта организации (CAPEX, ЧДД, предел кредитоспособности по DSCR);
+    при отсутствии бюджета он принимается равным полной стоимости проекта.
+    """
+    if not user.organization_id:
+        raise HTTPException(status_code=422,
+                            detail="Учётная запись не привязана к организации")
+    projects = opt.candidate_projects_from_db(db, org_id=user.organization_id)
+    if not projects:
+        raise HTTPException(
+            status_code=422,
+            detail="Нет данных проекта по вашей организации: импортируйте модель долгового "
+                   "риска или заполните фактические показатели (CAPEX и ЧДД).",
+        )
+    budget = payload.budget if payload.budget is not None else sum(p.cost for p in projects)
+    try:
+        result = opt.optimize_allocation(projects, budget, threshold=payload.threshold)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    project_id = int(projects[0].key) if projects[0].key.isdigit() else None
+    run = OptimizationRun(
+        project_id=project_id,
+        params={"budget": budget, "threshold": payload.threshold,
+                "scope": "organization", "organization_id": user.organization_id},
+        status=result.status,
+        result=result.to_dict(),
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return {"id": run.id, **result.to_dict()}

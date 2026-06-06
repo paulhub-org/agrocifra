@@ -29,3 +29,12 @@ class OptimizationRequest(BaseModel):
     projects: list[ProjectIn] | None = Field(
         default=None, description="Явные проекты-кандидаты; при отсутствии берутся из БД"
     )
+
+
+class MineOptimizationRequest(BaseModel):
+    """Оптимальный уровень затрат для своей организации (роль «Организация»)."""
+    budget: float | None = Field(
+        default=None, gt=0,
+        description="Бюджет, руб.; по умолчанию — полная стоимость проекта (CAPEX)",
+    )
+    threshold: float = Field(default=1.0, description="Порог эффективности/зрелости")
