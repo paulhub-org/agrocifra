@@ -48,6 +48,7 @@ export default function Reports() {
   const eff = data.efficiency_by_org
   const mat = data.maturity_by_org
   const regions = data.by_region.filter((r) => r.mean_ke != null)
+  const districts = (data.by_district || []).filter((r) => r.mean_ke != null || r.mean_maturity != null)
 
   return (
     <div className="stagger">
@@ -126,6 +127,27 @@ export default function Reports() {
             unit="КЗ"
             values={Object.fromEntries(
               data.by_region.filter((r) => r.mean_maturity != null).map((r) => [r.region, r.mean_maturity]),
+            )}
+          />
+        </div>
+      )}
+
+      {districts.length > 0 && (
+        <div className="map-grid">
+          <BelarusChoropleth
+            level="district"
+            title="Среднее КЭц по районам"
+            unit="КЭц"
+            values={Object.fromEntries(
+              data.by_district.filter((r) => r.mean_ke != null).map((r) => [r.district, r.mean_ke]),
+            )}
+          />
+          <BelarusChoropleth
+            level="district"
+            title="Средняя цифровая зрелость по районам"
+            unit="КЗ"
+            values={Object.fromEntries(
+              data.by_district.filter((r) => r.mean_maturity != null).map((r) => [r.district, r.mean_maturity]),
             )}
           />
         </div>

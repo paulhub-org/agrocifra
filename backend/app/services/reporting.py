@@ -31,12 +31,13 @@ def _zone_distribution(zones: list[str]) -> dict[str, int]:
 
 
 def org_region_map(db: Session) -> dict[int, dict[str, str]]:
-    """{organization_id: {name, region}} с подстановкой «Не указан» при отсутствии региона."""
+    """{organization_id: {name, region, district}} — «Не указан» при отсутствии региона."""
     rows = db.execute(
-        select(Organization.id, Organization.name, Region.name)
+        select(Organization.id, Organization.name, Region.name, Organization.district)
         .join(Region, Organization.region_id == Region.id, isouter=True)
     ).all()
-    return {oid: {"name": oname, "region": rname or "Не указан"} for oid, oname, rname in rows}
+    return {oid: {"name": oname, "region": rname or "Не указан", "district": district}
+            for oid, oname, rname, district in rows}
 
 
 def efficiency_rows(db: Session) -> list[EfficiencyAssessment]:
@@ -109,6 +110,27 @@ def summary(db: Session, *, org_id: int | None = None, region_id: int | None = N
         for region, v in sorted(buckets.items())
     ]
 
+    # Разрез по районам — для карт «… по районам» (V2.0, задача 5)
+    dbuckets: dict[str, dict[str, list]] = defaultdict(lambda: {"ke": [], "maturity": []})
+    for a in eff:
+        d = omap.get(a.organization_id, {}).get("district")
+        if d:
+            dbuckets[d]["ke"].append(a.coefficient)
+    for a in mat:
+        d = omap.get(a.organization_id, {}).get("district")
+        if d:
+            dbuckets[d]["maturity"].append(a.maturity)
+    by_district = [
+        {
+            "district": district,
+            "mean_ke": _safe_mean(v["ke"]),
+            "efficiency_count": len(v["ke"]),
+            "mean_maturity": _safe_mean(v["maturity"]),
+            "maturity_count": len(v["maturity"]),
+        }
+        for district, v in sorted(dbuckets.items())
+    ]
+
     efficiency_by_org = [
         {
             "organization_id": a.organization_id,
@@ -149,6 +171,7 @@ def summary(db: Session, *, org_id: int | None = None, region_id: int | None = N
     return {
         "overall": overall,
         "by_region": by_region,
+        "by_district": by_district,
         "efficiency_by_org": efficiency_by_org,
         "maturity_by_org": maturity_by_org,
         "recent_maturity": recent_maturity,

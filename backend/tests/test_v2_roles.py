@@ -85,3 +85,23 @@ def test_registration_captures_region_and_district(client):
     assert by_login["reg_dist"]["region_id"] is not None
     # ФИО отдельным полем (задача 19)
     assert by_login["reg_obl"]["full_name"] == "Региональный Р.Р."
+
+
+def test_summary_by_district(db):
+    """V2.0, задача 5: разрез по районам для карт «… по районам»."""
+    reg = m.Region(name="Тестобласть")
+    db.add(reg)
+    db.flush()
+    a = _org(db, "Орг-А", reg.id, "Перворайон")
+    b = _org(db, "Орг-Б", reg.id, "Второрайон")
+    _maturity(db, a.id, 0.4, 0.3, 0.35)
+    _maturity(db, b.id, 0.5, 0.4, 0.45)
+
+    s = reporting.summary(db)
+    by_d = {r["district"]: r for r in s["by_district"]}
+    assert set(by_d) == {"Перворайон", "Второрайон"}
+    assert by_d["Перворайон"]["mean_maturity"] == 0.35
+    # организации без района в разрез не попадают
+    c = _org(db, "Орг-В", reg.id, None)
+    _maturity(db, c.id, 0.6, 0.5, 0.55)
+    assert None not in {r["district"] for r in reporting.summary(db)["by_district"]}
