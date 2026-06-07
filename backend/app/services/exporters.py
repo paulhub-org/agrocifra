@@ -92,6 +92,7 @@ def build_word(db: Session) -> tuple[bytes, str, str]:
     style = doc.styles["Normal"]
     style.font.name = "Times New Roman"
     style.font.size = Pt(12)
+    style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY  # выравнивание по ширине
 
     h = doc.add_paragraph()
     h.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -248,3 +249,141 @@ def build_pdf(db: Session) -> tuple[bytes, str, str]:
 
     doc.build(elems)
     return buf.getvalue(), "АгроЦифра_отчёт.pdf", PDF_MIME
+
+
+# ──────────────────────── РЕКОМЕНДАЦИИ (V2.0, задача 3) ────────────────────────
+def _rec_filename(ext: str) -> str:
+    return f"АгроЦифра_рекомендации.{ext}"
+
+
+def _group_recs(items: list[dict]) -> list[dict]:
+    """Сгруппировать рекомендации по организациям, сохраняя порядок поступления."""
+    groups: list[dict] = []
+    index: dict = {}
+    for it in items:
+        oid = it["organization_id"]
+        if oid not in index:
+            index[oid] = {"organization": it["organization"], "region": it["region"],
+                          "district": it["district"], "items": []}
+            groups.append(index[oid])
+        index[oid]["items"].append(it)
+    return groups
+
+
+def _loc(group: dict) -> str:
+    bits = [b for b in (group.get("region"), group.get("district")) if b and b != "Не указан"]
+    return ", ".join(bits)
+
+
+def _rec_header(it: dict) -> str:
+    """Заголовок рекомендации: «Показатель — уровень (значение).»"""
+    head = it["indicator_label"]
+    if it.get("level"):
+        head += f" — {it['level']}"
+    if it.get("value") is not None:
+        head += f" ({_fmt(it['value'])})"
+    return head + "."
+
+
+def build_recommendations_excel(items: list[dict]) -> tuple[bytes, str, str]:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Рекомендации"
+    head = ["Организация", "Область", "Район", "Показатель", "Значение", "Уровень/зона", "Рекомендация"]
+    ws.append(head)
+    for it in items:
+        ws.append([it["organization"], it.get("region") or "", it.get("district") or "",
+                   it["indicator_label"], _fmt(it.get("value")), it.get("level") or "—", it["text"]])
+    widths = [30, 14, 16, 32, 10, 14, 90]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color=_GREEN)
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    for row in ws.iter_rows(min_row=2):
+        row[6].alignment = Alignment(wrap_text=True, vertical="top")
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue(), _rec_filename("xlsx"), XLSX_MIME
+
+
+def build_recommendations_word(items: list[dict]) -> tuple[bytes, str, str]:
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm, Pt, RGBColor
+
+    doc = Document()
+    section = doc.sections[0]
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(3)
+    section.right_margin = Cm(1)
+    cp = doc.core_properties
+    cp.author = ""
+    cp.last_modified_by = ""
+    style = doc.styles["Normal"]
+    style.font.name = "Times New Roman"
+    style.font.size = Pt(12)
+    style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY  # выравнивание по ширине
+
+    h = doc.add_paragraph()
+    h.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    h.add_run("ПРИЛОЖЕНИЕ").bold = True
+    title = doc.add_heading("Рекомендации по повышению показателей цифровизации", level=1)
+    for run in title.runs:
+        run.font.color.rgb = RGBColor(0x1B, 0x43, 0x32)
+
+    groups = _group_recs(items)
+    if not groups:
+        doc.add_paragraph("По заданным условиям рекомендации отсутствуют.")
+    for g in groups:
+        loc = _loc(g)
+        doc.add_heading(g["organization"] + (f" ({loc})" if loc else ""), level=2)
+        for it in g["items"]:
+            p = doc.add_paragraph()
+            p.add_run(_rec_header(it) + " ").bold = True
+            p.add_run(it["text"])
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue(), _rec_filename("docx"), DOCX_MIME
+
+
+def build_recommendations_pdf(items: list[dict]) -> tuple[bytes, str, str]:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    font, font_bold = _register_cyrillic_font()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm,
+                            leftMargin=2 * cm, rightMargin=2 * cm)
+    styles = getSampleStyleSheet()
+    styles["Normal"].fontName = font
+    styles["Normal"].fontSize = 10
+    styles["Normal"].leading = 14
+    styles["Title"].fontName = font_bold
+    styles["Title"].textColor = colors.HexColor("#1B4332")
+    styles["Heading2"].fontName = font_bold
+    styles["Heading2"].textColor = colors.HexColor("#2D6A4F")
+
+    def esc(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    elems = [Paragraph("Рекомендации по повышению показателей цифровизации", styles["Title"]),
+             Spacer(1, 10)]
+    groups = _group_recs(items)
+    if not groups:
+        elems.append(Paragraph("По заданным условиям рекомендации отсутствуют.", styles["Normal"]))
+    for g in groups:
+        loc = _loc(g)
+        elems.append(Paragraph(esc(g["organization"] + (f" ({loc})" if loc else "")), styles["Heading2"]))
+        for it in g["items"]:
+            elems.append(Paragraph(f"<b>{esc(_rec_header(it))}</b> {esc(it['text'])}", styles["Normal"]))
+            elems.append(Spacer(1, 4))
+        elems.append(Spacer(1, 8))
+    doc.build(elems)
+    return buf.getvalue(), _rec_filename("pdf"), PDF_MIME

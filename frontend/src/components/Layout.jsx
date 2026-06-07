@@ -15,6 +15,7 @@ const NAV = [
   { to: '/optimization', label: 'Оптимизация', roles: ['digitalization_office', 'state_authority', 'organization'] },
   { to: '/entry/maturity', label: 'Ввод · зрелость', roles: ['organization', 'digitalization_office'] },
   { to: '/entry/efficiency', label: 'Ввод · эффективность', roles: ['organization', 'digitalization_office'] },
+  { to: '/recommendations', label: 'Рекомендации', roles: ALL_ROLES },  // внизу панели (задача 3)
 ]
 
 export default function Layout() {

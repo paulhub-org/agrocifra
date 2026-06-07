@@ -105,3 +105,54 @@ def test_summary_by_district(db):
     c = _org(db, "Орг-В", reg.id, None)
     _maturity(db, c.id, 0.6, 0.5, 0.55)
     assert None not in {r["district"] for r in reporting.summary(db)["by_district"]}
+
+
+def _efficiency(db, org_id, coef, eco=0.5, env=0.5, soc=0.5, zone="эффективна"):
+    db.add(m.EfficiencyAssessment(organization_id=org_id, economic_index=eco, ecological_index=env,
+                                  social_index=soc, coefficient=coef, zone=zone, source="manual"))
+    db.flush()
+
+
+def test_recommendations_engine_and_filters(db):
+    """V2.0, задача 3: рекомендации по 4 показателям + фильтры по показателю/организации."""
+    from app.services import recommendations as rec
+    reg = m.Region(name="Тестобласть")
+    db.add(reg)
+    db.flush()
+    a = _org(db, "Орг-А", reg.id, "Перворайон")
+    b = _org(db, "Орг-Б", reg.id, "Второрайон")
+    _maturity(db, a.id, 0.7, 0.6, 0.65, zone="высокая")
+    _maturity(db, b.id, 0.2, 0.2, 0.20, zone="средняя")
+    _efficiency(db, a.id, 1.19, eco=0.6, env=0.5, soc=0.7)   # эффективна
+    _efficiency(db, b.id, 0.56, eco=0.3, env=0.5, soc=0.6)   # неэффективна; слабее всего экономическая
+
+    items = rec.build_recommendations(db, None)
+    assert len(items) == 8  # 2 организации × 4 показателя
+    assert {i["indicator"] for i in items} == {"need", "capability", "maturity", "efficiency"}
+
+    eff = {i["organization"]: i for i in items if i["indicator"] == "efficiency"}
+    assert eff["Орг-А"]["level"] == "эффективна" and "≥ 1,0" in eff["Орг-А"]["text"]
+    assert eff["Орг-Б"]["level"] == "неэффективна" and "< 1,0" in eff["Орг-Б"]["text"]
+    assert "экономической" in eff["Орг-Б"]["text"]  # приоритет — самая слабая составляющая
+
+    # фильтр по показателю
+    only_mat = rec.build_recommendations(db, None, indicator="maturity")
+    assert {i["indicator"] for i in only_mat} == {"maturity"} and len(only_mat) == 2
+    # фильтр по организации
+    only_a = rec.build_recommendations(db, None, organization_id=a.id)
+    assert {i["organization"] for i in only_a} == {"Орг-А"} and len(only_a) == 4
+    # фильтр по району
+    only_d = rec.build_recommendations(db, None, district="Второрайон")
+    assert {i["organization"] for i in only_d} == {"Орг-Б"}
+
+
+def test_recommendations_endpoint_and_export(client):
+    headers = _office_headers(client)
+    r = client.get("/recommendations", headers=headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert [i["key"] for i in body["indicators"]] == ["need", "capability", "maturity", "efficiency"]
+    assert isinstance(body["items"], list)
+    for fmt in ("xlsx", "docx", "pdf"):
+        assert client.get(f"/recommendations/export.{fmt}", headers=headers).status_code == 200
+    assert client.get("/recommendations/export.txt", headers=headers).status_code == 404

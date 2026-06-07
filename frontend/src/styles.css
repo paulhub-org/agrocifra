@@ -170,3 +170,12 @@ legend { font-family: "Spectral", serif; font-weight: 600; color: var(--green-90
 .legend-bar{flex:0 0 120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#cee4d3,#1b4332)}
 .legend-na{display:inline-flex;align-items:center;gap:4px;margin-left:6px}
 .legend-na i{width:12px;height:12px;border-radius:3px;background:#e7e9e6;display:inline-block}
+
+/* Рекомендации (V2.0, задача 3) */
+.rec-filters { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; margin-bottom: 18px; }
+.rec-filters .select-row { margin-bottom: 0; }
+.rec-item { padding: 12px 0; border-top: 1px solid var(--line); }
+.rec-item:first-of-type { border-top: none; padding-top: 4px; }
+.rec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+.rec-text { margin: 0; color: #33403a; line-height: 1.55; }
+.rec-val { font-size: .82rem; }

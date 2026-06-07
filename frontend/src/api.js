@@ -68,6 +68,7 @@ export const api = {
   optimizationRun: (id) => request(`/optimization/runs/${id}`),
   summary: () => request('/reports/summary'),
   organizationReport: (id) => request(`/reports/organization/${id}`),
+  recommendations: () => request('/recommendations'),
   async download(path, filename) {
     const res = await fetch(`${API_BASE}${path}`, {
       headers: { Authorization: `Bearer ${getToken()}` },

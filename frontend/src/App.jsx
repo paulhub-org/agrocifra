@@ -11,6 +11,7 @@ import Optimization from './components/Optimization.jsx'
 import EfficiencyForm from './components/EfficiencyForm.jsx'
 import MaturityForm from './components/MaturityForm.jsx'
 import PendingUsers from './components/PendingUsers.jsx'
+import Recommendations from './components/Recommendations.jsx'
 
 const DATA_ENTRY = ['organization', 'digitalization_office']
 const OPT_ROLES = ['digitalization_office', 'state_authority', 'organization']
@@ -52,6 +53,7 @@ export default function App() {
           element={<Protected roles={STAFF_ROLES}><Reports /></Protected>} />
         <Route path="optimization"
           element={<Protected roles={OPT_ROLES}><Optimization /></Protected>} />
+        <Route path="recommendations" element={<Recommendations />} />
         <Route path="entry/efficiency"
           element={<Protected roles={DATA_ENTRY}><EfficiencyForm /></Protected>} />
         <Route path="entry/maturity"
