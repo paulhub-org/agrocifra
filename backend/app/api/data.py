@@ -117,6 +117,48 @@ def sync_maturity(db: Session = Depends(get_db),
         raise HTTPException(status_code=502, detail=f"Jotform sync failed: {exc}") from exc
 
 
+@router.get("/jotform/prefill/{kind}",
+            summary="Автозагрузка данных организации из её последней заявки Jotform (задачи 16/17/18)")
+def jotform_prefill(kind: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Подставить данные текущей организации из её заявки Jotform.
+
+    Доступно роли «Организация» (организация определяется по учётной записи). Для
+    учётных записей без привязки к организации возвращается available=false.
+    """
+    if kind not in ("maturity", "efficiency"):
+        raise HTTPException(status_code=404, detail="Неизвестный тип формы")
+    if not user.organization_id:
+        return {"available": False, "reason": "no_org"}
+    org = db.get(Organization, user.organization_id)
+    if org is None:
+        return {"available": False, "reason": "no_org"}
+    try:
+        return etl.jotform_org_prefill(org.name, kind)
+    except Exception as exc:  # noqa: BLE001 — сетевые/HTTP ошибки внешней интеграции
+        raise HTTPException(status_code=502, detail=f"Jotform: {exc}") from exc
+
+
+@router.post("/jotform/sync-mine/{kind}",
+             summary="Загрузить последнюю заявку Jotform своей организации как оценку (задача 16)")
+def jotform_sync_mine(kind: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Обновить оценку текущей организации из её последней заявки Jotform.
+
+    Применяется автозагрузкой модуля оптимизации: после обновления КЭц организации
+    расчёт оптимального уровня затрат опирается на актуальные данные Jotform.
+    """
+    if kind not in ("maturity", "efficiency"):
+        raise HTTPException(status_code=404, detail="Неизвестный тип формы")
+    if not user.organization_id:
+        return {"available": False, "reason": "no_org"}
+    org = db.get(Organization, user.organization_id)
+    if org is None:
+        return {"available": False, "reason": "no_org"}
+    try:
+        return etl.sync_org_latest(db, org.name, kind)
+    except Exception as exc:  # noqa: BLE001 — сетевые/HTTP ошибки внешней интеграции
+        raise HTTPException(status_code=502, detail=f"Jotform: {exc}") from exc
+
+
 def _save_upload(file: UploadFile) -> Path:
     tmp = Path(tempfile.mkdtemp()) / (file.filename or "upload.xlsx")
     with tmp.open("wb") as out:

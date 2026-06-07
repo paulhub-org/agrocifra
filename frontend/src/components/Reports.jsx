@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 import BelarusChoropleth from './BelarusChoropleth.jsx'
 
 const Plot = createPlotlyComponent(Plotly)
@@ -28,6 +29,23 @@ export default function Reports() {
   const [orgRep, setOrgRep] = useState(null)
   const [busy, setBusy] = useState('')
   const [exportError, setExportError] = useState('')
+  const { user } = useAuth()
+  const canSync = !!user && ['digitalization_office', 'state_authority'].includes(user.role)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+
+  async function syncJotform() {
+    setSyncing(true); setSyncMsg('Синхронизация с Jotform…')
+    try {
+      const [e, m] = await Promise.all([api.syncEfficiency(), api.syncMaturity()])
+      setData(await api.summary())
+      if (orgId) api.organizationReport(orgId).then(setOrgRep).catch(() => {})
+      setSyncMsg(`Загружено из Jotform: эффективность +${e.loaded}, зрелость +${m.loaded}`
+        + ((e.skipped || m.skipped) ? ` (без изменений: ${e.skipped + m.skipped})` : ''))
+    } catch (ex) {
+      setSyncMsg(ex.message || 'Не удалось синхронизироваться с Jotform')
+    } finally { setSyncing(false) }
+  }
 
   useEffect(() => { api.summary().then(setData).catch((e) => setError(e.message)) }, [])
   useEffect(() => {
@@ -55,6 +73,7 @@ export default function Reports() {
       <div className="reports-head">
         <h2 className="page-title">Отчёты и визуализация</h2>
         <div className="export-bar">
+          {canSync && <button className="ghost" disabled={syncing} onClick={syncJotform}>{syncing ? 'Синхронизация…' : 'Обновить из Jotform'}</button>}
           <span className="muted">Экспорт:</span>
           <button className="ghost" disabled={busy} onClick={() => exportFile('docx')}>{busy === 'docx' ? '…' : 'Word'}</button>
           <button className="ghost" disabled={busy} onClick={() => exportFile('xlsx')}>{busy === 'xlsx' ? '…' : 'Excel'}</button>
@@ -62,6 +81,7 @@ export default function Reports() {
         </div>
       </div>
       {exportError && <div className="error" style={{ marginTop: 8 }}>{exportError}</div>}
+      {syncMsg && <div className="muted" style={{ marginTop: 8 }}>{syncMsg}</div>}
 
       {eff.length === 0 && mat.length === 0 && (
         <p className="muted">Нет данных для визуализации. Введите или импортируйте оценки.</p>

@@ -47,6 +47,8 @@ export const api = {
     request('/data/assessments/maturity', { method: 'POST', body: payload }),
   syncEfficiency: () => request('/data/etl/jotform/efficiency/sync', { method: 'POST' }),
   syncMaturity: () => request('/data/etl/jotform/maturity/sync', { method: 'POST' }),
+  jotformPrefill: (kind) => request(`/data/jotform/prefill/${kind}`),
+  jotformSyncMine: (kind) => request(`/data/jotform/sync-mine/${kind}`, { method: 'POST' }),
   async importModel(file, orgName, dscrNorm) {
     const fd = new FormData()
     fd.append('file', file)

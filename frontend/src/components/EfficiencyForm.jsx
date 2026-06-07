@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { useAuth } from '../auth.jsx'
 
 const GROUPS = [
   ['Экономические показатели', [
@@ -29,6 +30,12 @@ const GROUPS = [
 const OPTIONAL = new Set(['profit_before', 'profit_after', 'total_costs_before', 'total_costs'])
 const OBLASTS = ['Брестская', 'Витебская', 'Гомельская', 'Гродненская', 'Минская', 'Могилёвская']
 const fmt = (x) => Number(x).toFixed(4).replace('.', ',')
+const JF_REASON = {
+  not_configured: 'Интеграция с Jotform не настроена (нет API-ключа).',
+  no_org: 'Учётная запись не привязана к организации.',
+  no_submission: 'В Jotform пока нет заявки по вашей организации.',
+  mapping_error: 'Не удалось сопоставить поля заявки Jotform.',
+}
 
 export default function EfficiencyForm() {
   const [name, setName] = useState('')
@@ -39,6 +46,36 @@ export default function EfficiencyForm() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setV((s) => ({ ...s, [k]: e.target.value }))
+  const { user } = useAuth()
+  const isOrg = user?.role === 'organization'
+  const [jf, setJf] = useState('')
+
+  async function loadFromJotform(manual) {
+    if (manual) setJf('Загрузка из Jotform…')
+    try {
+      const r = await api.jotformPrefill('efficiency')
+      if (r.available) {
+        const d = r.data
+        if (d.organization_name) setName(d.organization_name)
+        if (d.region) setRegion(d.region)
+        if (d.district) setDistrict(d.district)
+        if (d.values) {
+          const nv = {}
+          for (const [k, val] of Object.entries(d.values)) {
+            if (val != null) nv[k] = String(val).replace('.', ',')
+          }
+          setV(nv)
+        }
+        setJf(`Подставлено из заявки Jotform${r.submitted_at ? ` от ${r.submitted_at}` : ''}.`)
+      } else if (manual) {
+        setJf(JF_REASON[r.reason] || 'Данные из Jotform недоступны.')
+      }
+    } catch (ex) {
+      if (manual) setJf(ex.message || 'Ошибка обращения к Jotform.')
+    }
+  }
+
+  useEffect(() => { if (isOrg) loadFromJotform(false) }, [isOrg])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(e) {
     e.preventDefault()
@@ -67,6 +104,12 @@ export default function EfficiencyForm() {
       <h2 className="page-title">Ввод данных · эффективность цифровизации</h2>
       <p className="muted">Интегральный коэффициент КЭц рассчитывается по индексной формуле (произведение средних отношений «после/до»).</p>
       <p className="jotform-link">Заполнить через форму Jotform: <a href="https://form.jotform.com/222133487281353" target="_blank" rel="noopener noreferrer">анкета фактических показателей эффективности</a>.</p>
+      {isOrg && (
+        <div style={{ margin: '0 0 12px' }}>
+          <button type="button" className="ghost" onClick={() => loadFromJotform(true)}>Загрузить из Jotform</button>
+          {jf && <span className="muted" style={{ marginLeft: 10 }}>{jf}</span>}
+        </div>
+      )}
       <form onSubmit={submit} className="form">
         <label className="full">Наименование организации
           <input value={name} onChange={(e) => setName(e.target.value)} required />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
 import createPlotlyComponent from 'react-plotly.js/factory'
 import { api } from '../api.js'
@@ -7,6 +7,12 @@ import { useAuth } from '../auth.jsx'
 const Plot = createPlotlyComponent(Plotly)
 const num = (v) => Number(String(v).replace(',', '.')) || 0
 const money = (x) => Number(x).toLocaleString('ru-RU')
+const JF_REASON = {
+  not_configured: 'Интеграция с Jotform не настроена (нет API-ключа).',
+  no_org: 'Учётная запись не привязана к организации.',
+  no_submission: 'В Jotform пока нет заявки по вашей организации.',
+  mapping_error: 'Не удалось сопоставить поля заявки Jotform.',
+}
 
 // Стартовый пример: 7 пилотных организаций (КЭц — фактические; capex/эффект — иллюстративные)
 const SEED = [
@@ -222,6 +228,24 @@ function OrgOptimization() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [jf, setJf] = useState('')
+
+  async function syncFromJotform(manual) {
+    if (manual) setJf('Загрузка из Jotform…')
+    try {
+      const r = await api.jotformSyncMine('efficiency')
+      if (r.available && r.coefficient != null) {
+        setJf(`Показатели обновлены из Jotform: КЭц = ${Number(r.coefficient).toFixed(2).replace('.', ',')}`
+          + `${r.submitted_at ? ` (заявка от ${r.submitted_at})` : ''}.`)
+      } else if (manual) {
+        setJf(JF_REASON[r.reason] || 'Данные из Jotform недоступны.')
+      }
+    } catch (ex) {
+      if (manual) setJf(ex.message || 'Ошибка обращения к Jotform.')
+    }
+  }
+
+  useEffect(() => { syncFromJotform(false) }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run() {
     setError(''); setResult(null); setBusy(true)
@@ -237,6 +261,10 @@ function OrgOptimization() {
       <h2 className="page-title">Оптимальный уровень затрат на цифровизацию</h2>
       <p className="muted">Расчёт по фактическим показателям вашей организации. Решатель PuLP/CBC; учитывается предел кредитоспособности (по запасу DSCR).</p>
       <p className="jotform-link">Обновить фактические показатели: <a href="https://form.jotform.com/222133487281353" target="_blank" rel="noopener noreferrer">анкета эффективности</a>.</p>
+      <div style={{ margin: '0 0 12px' }}>
+        <button type="button" className="ghost" onClick={() => syncFromJotform(true)}>Обновить из Jotform</button>
+        {jf && <span className="muted" style={{ marginLeft: 10 }}>{jf}</span>}
+      </div>
       <div className="form-grid" style={{ maxWidth: 460, marginBottom: 12 }}>
         <label>Бюджет, руб. (необязательно — по умолчанию полная стоимость проекта)
           <input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="авто" />

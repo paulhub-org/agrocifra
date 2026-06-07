@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from app.services.importers import (
 )
 from app.services.jotform_client import JotformClient
 from app.services.jotform_mapping import (
+    answer_by_text,
     efficiency_inputs_from_answers,
     maturity_aggregates_from_answers,
     maturity_level_from_answers,
@@ -289,3 +291,151 @@ def load_project_finance(db: Session, org_name: str, path: str | Path, *,
         "cost": proj.capex, "effect": pf.npv, "credit_limit": credit_limit,
         "finance": pf.to_dict(),
     }
+
+
+# ─────────────────── автозагрузка данных организации из Jotform (V2.0, задачи 16/17/18) ───────────────────
+ADDRESS_TEXT = "Юридический (почтовый) адрес организации"
+
+# подстрока в адресе → нормализованная область (с «ё»)
+_OBLAST_IN_ADDRESS = {
+    "брестск": "Брестская", "витебск": "Витебская", "гомельск": "Гомельская",
+    "гроднен": "Гродненская", "минск": "Минская", "могил": "Могилёвская",
+}
+
+
+def _region_from_address(addr: object) -> str | None:
+    a = str(addr or "").lower()
+    for sub, name in _OBLAST_IN_ADDRESS.items():
+        if sub in a:
+            return name
+    return None
+
+
+def _district_from_address(addr: object) -> str | None:
+    """Извлечь название района из адреса: «… Кировский р-н …» / «… Смолевичский район …»."""
+    text = str(addr or "")
+    m = (re.search(r"([А-ЯЁ][А-Яа-яёЁ-]+)\s+р[-\.\s]?н\b", text)
+         or re.search(r"([А-ЯЁ][А-Яа-яёЁ-]+)\s+район", text))
+    return m.group(1) if m else None
+
+
+def _submission_sort_key(sub: dict) -> int:
+    try:
+        return int(sub.get("id") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _latest_submission_for_org(client: JotformClient, form_id: str, org_name: str) -> dict | None:
+    """Последний (по id) сабмишен формы, относящийся к организации (по наименованию)."""
+    target = _norm_name(org_name)
+    best: dict | None = None
+    for sub in client.iter_submissions(form_id):
+        name = organization_name_from_answers(sub.get("answers", {}))
+        if not name:
+            continue
+        n = _norm_name(name)
+        if n == target or target in n or n in target:
+            if best is None or _submission_sort_key(sub) > _submission_sort_key(best):
+                best = sub
+    return best
+
+
+def _norm_name(s: object) -> str:
+    return " ".join(str(s or "").split()).lower()
+
+
+def jotform_org_prefill(org_name: str, kind: str, client: JotformClient | None = None) -> dict:
+    """Подготовить данные для предзаполнения формы организации из её заявки Jotform.
+
+    Возвращает {available, reason?, submitted_at?, data?}. Сетевые ошибки пробрасываются.
+    """
+    if not settings.jotform_api_key:
+        return {"available": False, "reason": "not_configured"}
+    form_id = (settings.jotform_form_maturity if kind == "maturity"
+               else settings.jotform_form_efficiency)
+    own = client is None
+    client = client or JotformClient()
+    try:
+        sub = _latest_submission_for_org(client, form_id, org_name)
+    finally:
+        if own:
+            client.close()
+    if sub is None:
+        return {"available": False, "reason": "no_submission"}
+    answers = sub.get("answers", {})
+    addr = answer_by_text(answers, ADDRESS_TEXT)
+    region = _region_from_address(addr)
+    district = _district_from_address(addr)
+    try:
+        if kind == "maturity":
+            need_avg, capability_avg = maturity_aggregates_from_answers(answers)
+            data = {"organization_name": org_name, "need_avg": need_avg,
+                    "capability_avg": capability_avg, "region": region, "district": district}
+        else:
+            inputs = efficiency_inputs_from_answers(answers)
+            data = {"organization_name": org_name, "region": region, "district": district,
+                    "values": asdict(inputs)}
+    except ValueError as exc:
+        return {"available": False, "reason": "mapping_error", "detail": str(exc)}
+    return {"available": True, "submitted_at": sub.get("created_at"), "data": data}
+
+
+def sync_org_latest(db: Session, org_name: str, kind: str,
+                    client: JotformClient | None = None) -> dict:
+    """Загрузить последнюю заявку организации из Jotform как оценку (идемпотентно по id).
+
+    Используется автозагрузкой оптимизации (задача 16): после загрузки оценка КЭц/зрелости
+    организации обновляется, и run-mine считает по актуальным данным Jotform.
+    """
+    if not settings.jotform_api_key:
+        return {"available": False, "reason": "not_configured"}
+    form_id = (settings.jotform_form_maturity if kind == "maturity"
+               else settings.jotform_form_efficiency)
+    own = client is None
+    client = client or JotformClient()
+    try:
+        sub = _latest_submission_for_org(client, form_id, org_name)
+    finally:
+        if own:
+            client.close()
+    if sub is None:
+        return {"available": False, "reason": "no_submission"}
+    sid = str(sub.get("id"))
+    answers = sub.get("answers", {})
+    submitted_at = sub.get("created_at")
+    model = MaturityAssessment if kind == "maturity" else EfficiencyAssessment
+
+    # уже загружено ранее — вернуть текущую оценку без дублирования
+    if _already_processed(db, "jotform", sid):
+        org = db.execute(
+            select(Organization).where(Organization.name == org_name)
+        ).scalar_one_or_none()
+        row = None
+        if org is not None:
+            row = db.execute(
+                select(model).where(model.organization_id == org.id).order_by(model.id.desc())
+            ).scalars().first()
+        out = {"available": True, "already": True, "submitted_at": submitted_at}
+        if row is not None:
+            out["zone"] = row.zone
+            out["maturity" if kind == "maturity" else "coefficient"] = (
+                row.maturity if kind == "maturity" else row.coefficient)
+        return out
+
+    try:
+        if kind == "maturity":
+            need_avg, capability_avg = maturity_aggregates_from_answers(answers)
+            level = maturity_level_from_answers(answers)
+            a = load_maturity(db, org_name, need_avg, capability_avg,
+                              source="jotform", external_id=sid, maturity=level)
+            db.commit()
+            return {"available": True, "loaded": True, "submitted_at": submitted_at,
+                    "maturity": a.maturity, "zone": a.zone}
+        inputs = efficiency_inputs_from_answers(answers)
+        a = load_efficiency(db, org_name, inputs, source="jotform", external_id=sid)
+        db.commit()
+        return {"available": True, "loaded": True, "submitted_at": submitted_at,
+                "coefficient": a.coefficient, "zone": a.zone}
+    except ValueError as exc:
+        return {"available": False, "reason": "mapping_error", "detail": str(exc)}
